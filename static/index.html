@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SSE Equipment Inspections</title>
+    <title>SSESteel - Inspections</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
@@ -1531,6 +1531,24 @@ const EQUIPMENT_TYPE_OPTIONS = [
 ];
 
 // =============================================================================
+// EQUIPMENT SEED — auto-populates on first load if database is empty
+// =============================================================================
+const EQUIPMENT_SEED = [
+    { equipment_id: 'BIG-RED-01', equipment_type: 'telehandler_33k', category: 'field', make: 'Taylor', model: 'Forklift 33K', serial_number: '', capacity: '33,000 lb' },
+    { equipment_id: 'BLUE-GENIE-01', equipment_type: 'telehandler_12k', category: 'field', make: 'Genie', model: 'Telehandler 12K', serial_number: '', capacity: '12,000 lb' },
+    { equipment_id: 'GREEN-JLG-01', equipment_type: 'telehandler_12k', category: 'field', make: 'JLG', model: 'Telehandler 12K', serial_number: '0160064879', capacity: '12,000 lb' },
+    { equipment_id: 'ORANGE-GENIE-01', equipment_type: 'telehandler_12k', category: 'field', make: 'Genie', model: 'Telehandler 12K', serial_number: '', capacity: '12,000 lb' },
+    { equipment_id: 'Yellow Cat', equipment_type: 'telehandler_12k', category: 'field', make: 'Caterpillar', model: 'TL1255C', serial_number: '', capacity: '12,000 lb' },
+    { equipment_id: 'EMI-TC-01', equipment_type: 'emi_tube_cutter', category: 'shop', make: 'EMI', model: 'TPC2464 Tube Cutter', serial_number: '', capacity: '5" Max' },
+    { equipment_id: 'MILLER-350P-01', equipment_type: 'miller_welder', category: 'shop', make: 'Miller', model: 'Millermatic 350P', serial_number: '', capacity: '' },
+    { equipment_id: 'PIRANHA-01', equipment_type: 'piranha_laser', category: 'shop', make: 'Piranha', model: '6kW Fiber Laser', serial_number: '', capacity: "5' x 10' Table" },
+    { equipment_id: 'PYTHON-BL-01', equipment_type: 'python_beam_line', category: 'shop', make: 'Python', model: 'X Beam Line', serial_number: '', capacity: "100' Infeed / 40' Outfeed" },
+    { equipment_id: 'PYTHON-PT-01', equipment_type: 'python_plasma', category: 'shop', make: 'Python', model: "X Plasma Table 10'x25'", serial_number: '', capacity: '300A Hypertherm' },
+    { equipment_id: 'PRESS-01', equipment_type: 'press_brake', category: 'shop', make: 'Standard', model: '350T Hydraulic Press Brake', serial_number: '', capacity: '350 Ton' },
+    { equipment_id: 'ROUNDO-01', equipment_type: 'plate_roller', category: 'shop', make: 'Roundo', model: 'Plate Roller', serial_number: '', capacity: '' },
+];
+
+// =============================================================================
 // MAIN APP COMPONENT
 // =============================================================================
 function App() {
@@ -1555,10 +1573,22 @@ function App() {
         }
     };
 
-    // Just load equipment from API — no more seeding from frontend
-    useEffect(() => {
-        loadEquipment().finally(() => setLoading(false));
-    }, []);
+    // Load equipment from API, seed if database is empty
+    const seedEquipment = async () => {
+        try {
+            const existing = await loadEquipment();
+            if (existing.length === 0) {
+                for (const eq of EQUIPMENT_SEED) {
+                    try { await API.post('/equipment', eq); } catch (e) { console.log('Seed skip:', eq.equipment_id); }
+                }
+                await loadEquipment();
+                notify('Equipment seeded successfully');
+            }
+        } catch (e) { console.error('Seed failed:', e); }
+        setLoading(false);
+    };
+
+    useEffect(() => { seedEquipment(); }, []);
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center">
@@ -1577,7 +1607,7 @@ function App() {
                     <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-sse-orange rounded-lg flex items-center justify-center font-bold text-lg">SSE</div>
                         <div>
-                            <h1 className="text-lg font-bold leading-tight">Equipment Inspections</h1>
+                            <h1 className="text-lg font-bold leading-tight">SSESteel - Inspections</h1>
                             <p className="text-xs text-gray-400">Southern Services & Equipment</p>
                         </div>
                     </div>
