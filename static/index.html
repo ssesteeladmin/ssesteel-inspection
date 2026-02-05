@@ -1,14 +1,1579 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>SSE Equipment Inspections</title>
-    <script type="module" crossorigin src="/assets/index-DiW6jdGb.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-jFCCOwqS.css">
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SSE Equipment Inspections</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --navy: #0a1628;
+  --navy-light: #132038;
+  --navy-mid: #1a2d4a;
+  --orange: #e8612d;
+  --orange-hover: #d4551f;
+  --green: #22c55e;
+  --green-bg: #052e16;
+  --yellow: #eab308;
+  --yellow-bg: #422006;
+  --red: #ef4444;
+  --red-bg: #450a0a;
+  --blue: #3b82f6;
+  --gray-100: #f1f5f9;
+  --gray-200: #e2e8f0;
+  --gray-300: #cbd5e1;
+  --gray-400: #94a3b8;
+  --gray-500: #64748b;
+  --gray-600: #475569;
+  --gray-700: #334155;
+  --gray-800: #1e293b;
+  --gray-900: #0f172a;
+  --radius: 10px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.3);
+}
+
+body {
+  font-family: 'DM Sans', sans-serif;
+  background: var(--navy);
+  color: #e2e8f0;
+  min-height: 100vh;
+}
+
+/* NAV */
+.topnav {
+  background: var(--navy-light);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  padding: 0 24px;
+  display: flex;
+  align-items: center;
+  height: 60px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.topnav .logo {
+  font-family: 'Space Mono', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--orange);
+  letter-spacing: -0.5px;
+  margin-right: 40px;
+}
+
+.topnav .logo span { color: var(--gray-400); font-weight: 400; }
+
+.nav-tabs {
+  display: flex;
+  gap: 4px;
+  height: 100%;
+  align-items: stretch;
+}
+
+.nav-tab {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  padding: 0 16px;
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.nav-tab:hover { color: var(--gray-200); }
+.nav-tab.active { color: #fff; }
+.nav-tab.active::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 8px;
+  right: 8px;
+  height: 2px;
+  background: var(--orange);
+  border-radius: 2px 2px 0 0;
+}
+
+.badge {
+  background: var(--orange);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 10px;
+  min-width: 18px;
+  text-align: center;
+}
+
+/* MAIN CONTENT */
+.main {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.page-subtitle {
+  color: var(--gray-400);
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+/* BUTTONS */
+.btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.15s;
+}
+
+.btn-primary {
+  background: var(--orange);
+  color: #fff;
+}
+.btn-primary:hover { background: var(--orange-hover); transform: translateY(-1px); }
+
+.btn-secondary {
+  background: var(--navy-mid);
+  color: var(--gray-200);
+  border: 1px solid rgba(255,255,255,0.1);
+}
+.btn-secondary:hover { background: var(--gray-700); }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--gray-400);
+  padding: 8px 12px;
+}
+.btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.05); }
+
+.btn-sm { padding: 6px 14px; font-size: 13px; }
+
+.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
+.btn-danger:hover { background: rgba(239,68,68,0.2); }
+
+/* CARDS */
+.card {
+  background: var(--navy-light);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.card-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-body { padding: 20px; }
+
+/* GRID */
+.equipment-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.equip-card {
+  background: var(--navy-light);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius);
+  transition: border-color 0.2s, box-shadow 0.2s;
+  overflow: hidden;
+}
+
+.equip-card:hover {
+  border-color: rgba(255,255,255,0.12);
+  box-shadow: var(--shadow);
+}
+
+.equip-card-head {
+  background: var(--navy-mid);
+  padding: 16px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.equip-id {
+  font-family: 'Space Mono', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.equip-type {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--orange);
+}
+
+.equip-card-body { padding: 16px 20px; }
+
+.equip-detail {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  font-size: 13px;
+}
+.equip-detail .label { color: var(--gray-400); }
+.equip-detail .value { color: var(--gray-200); }
+
+.equip-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.inspect-btn {
+  flex: 1;
+  background: rgba(232,97,45,0.1);
+  border: 1px solid rgba(232,97,45,0.3);
+  color: var(--orange);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.inspect-btn:hover { background: rgba(232,97,45,0.2); }
+
+/* FILTER BAR */
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.filter-chip {
+  background: var(--navy-mid);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--gray-400);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-chip:hover { border-color: rgba(255,255,255,0.15); color: var(--gray-200); }
+.filter-chip.active {
+  background: rgba(232,97,45,0.15);
+  border-color: var(--orange);
+  color: var(--orange);
+}
+
+/* MODAL */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.15s;
+}
+
+.modal {
+  background: var(--navy-light);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: var(--shadow-lg);
+  animation: slideUp 0.2s;
+}
+
+.modal-lg { max-width: 900px; }
+
+.modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title { font-size: 18px; font-weight: 700; color: #fff; }
+
+.modal-body { padding: 24px; }
+
+.modal-footer {
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+.close-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
+
+/* FORMS */
+.form-group { margin-bottom: 16px; }
+
+.form-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--gray-400);
+  margin-bottom: 6px;
+}
+
+.form-input, .form-select, .form-textarea {
+  width: 100%;
+  background: var(--navy);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  transition: border-color 0.15s;
+}
+
+.form-input:focus, .form-select:focus, .form-textarea:focus {
+  outline: none;
+  border-color: var(--orange);
+}
+
+.form-select option { background: var(--navy-light); }
+.form-textarea { resize: vertical; min-height: 80px; }
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* INSPECTION FORM */
+.checklist-section {
+  margin-bottom: 24px;
+}
+
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--orange);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+}
+
+.checklist-item:last-child { border-bottom: none; }
+
+.item-label {
+  flex: 1;
+  font-size: 14px;
+  color: var(--gray-200);
+  line-height: 1.4;
+}
+
+.status-btns {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.status-btn {
+  font-family: 'DM Sans', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: transparent;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: all 0.1s;
+}
+
+.status-btn.ok.selected { background: var(--green-bg); border-color: var(--green); color: var(--green); }
+.status-btn.na.selected { background: rgba(100,116,139,0.2); border-color: var(--gray-500); color: var(--gray-300); }
+.status-btn.fail.selected { background: var(--yellow-bg); border-color: var(--yellow); color: var(--yellow); }
+.status-btn:hover { border-color: rgba(255,255,255,0.2); }
+
+.item-comment {
+  width: 100%;
+  background: var(--navy);
+  border: 1px solid rgba(255,255,255,0.08);
+  color: var(--gray-200);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-top: 6px;
+}
+
+/* STATUS BADGES */
+.status-tag {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.status-safe { background: var(--green-bg); color: var(--green); }
+.status-needs_repair { background: var(--yellow-bg); color: var(--yellow); }
+.status-out_of_service { background: var(--red-bg); color: var(--red); }
+.status-open { background: rgba(59,130,246,0.15); color: var(--blue); }
+.status-in_progress { background: var(--yellow-bg); color: var(--yellow); }
+.status-completed { background: var(--green-bg); color: var(--green); }
+.priority-high { background: var(--red-bg); color: var(--red); }
+.priority-normal { background: rgba(59,130,246,0.15); color: var(--blue); }
+.priority-low { background: rgba(100,116,139,0.2); color: var(--gray-400); }
+
+/* TABLE */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.data-table th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--gray-500);
+  padding: 10px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.data-table td {
+  padding: 12px 16px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.03);
+  vertical-align: middle;
+}
+
+.data-table tr:hover td { background: rgba(255,255,255,0.02); }
+
+/* DASHBOARD STATS */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  background: var(--navy-light);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.stat-value {
+  font-family: 'Space Mono', monospace;
+  font-size: 32px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--gray-400);
+  margin-top: 4px;
+}
+
+.stat-card.alert { border-color: rgba(239,68,68,0.3); }
+.stat-card.alert .stat-value { color: var(--red); }
+.stat-card.ok .stat-value { color: var(--green); }
+
+/* EMPTY STATE */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--gray-500);
+}
+
+.empty-state svg {
+  width: 48px;
+  height: 48px;
+  stroke: var(--gray-600);
+  margin-bottom: 16px;
+}
+
+.empty-state p { margin-top: 8px; }
+
+/* TOAST */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--navy-light);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  box-shadow: var(--shadow-lg);
+  z-index: 300;
+  animation: slideUp 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+}
+
+.toast.success { border-color: rgba(34,197,94,0.4); }
+.toast.error { border-color: rgba(239,68,68,0.4); }
+
+/* ANIMATIONS */
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+/* RESPONSIVE */
+@media (max-width: 768px) {
+  .topnav { padding: 0 12px; }
+  .topnav .logo { margin-right: 16px; font-size: 15px; }
+  .nav-tab { padding: 0 10px; font-size: 13px; }
+  .main { padding: 16px; }
+  .equipment-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .modal { width: 95%; }
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Overall Status Radio */
+.overall-status-group {
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+}
+
+.overall-radio {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.15s;
+  background: transparent;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--gray-400);
+}
+
+.overall-radio:hover { border-color: rgba(255,255,255,0.2); }
+.overall-radio.safe.selected { border-color: var(--green); color: var(--green); background: var(--green-bg); }
+.overall-radio.needs_repair.selected { border-color: var(--yellow); color: var(--yellow); background: var(--yellow-bg); }
+.overall-radio.out_of_service.selected { border-color: var(--red); color: var(--red); background: var(--red-bg); }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--navy); }
+::-webkit-scrollbar-thumb { background: var(--gray-700); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gray-600); }
+
+/* Inspection detail view */
+.insp-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.insp-detail-item .dl { font-size: 12px; color: var(--gray-500); }
+.insp-detail-item .dv { font-size: 14px; color: #fff; margin-top: 2px; }
+
+.item-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 6px;
+}
+.dot-ok { background: var(--green); }
+.dot-na { background: var(--gray-500); }
+.dot-needs_attention { background: var(--yellow); }
+</style>
+</head>
+<body>
+
+<nav class="topnav">
+  <div class="logo">SSE <span>Inspections</span></div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" data-page="dashboard" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-tab" data-page="equipment" onclick="showPage('equipment')">Equipment</button>
+    <button class="nav-tab" data-page="inspections" onclick="showPage('inspections')">History</button>
+    <button class="nav-tab" data-page="tickets" onclick="showPage('tickets')">
+      Work Tickets <span class="badge" id="ticketBadge" style="display:none">0</span>
+    </button>
+  </div>
+</nav>
+
+<div class="main" id="app">
+  <!-- Dashboard -->
+  <div id="page-dashboard">
+    <div class="page-header">
+      <div><div class="page-title">Dashboard</div><div class="page-subtitle">Equipment inspection overview</div></div>
+    </div>
+    <div class="stats-grid" id="statsGrid"></div>
+    <div class="card">
+      <div class="card-header"><span style="font-weight:600">Recent Inspections</span></div>
+      <div class="card-body" id="recentInspections"><div class="empty-state"><p>Loading...</p></div></div>
+    </div>
+  </div>
+
+  <!-- Equipment -->
+  <div id="page-equipment" style="display:none">
+    <div class="page-header">
+      <div><div class="page-title">Equipment</div><div class="page-subtitle">Manage your fleet</div></div>
+      <button class="btn btn-primary" onclick="showAddEquipment()">+ Add Equipment</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-chip active" onclick="filterEquipment('all', this)">All</button>
+      <button class="filter-chip" onclick="filterEquipment('field', this)">Field</button>
+      <button class="filter-chip" onclick="filterEquipment('shop', this)">Shop</button>
+    </div>
+    <div class="equipment-grid" id="equipmentGrid"></div>
+  </div>
+
+  <!-- Inspections History -->
+  <div id="page-inspections" style="display:none">
+    <div class="page-header">
+      <div><div class="page-title">Inspection History</div><div class="page-subtitle">All completed inspections</div></div>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table class="data-table" id="inspectionsTable">
+          <thead>
+            <tr><th>Date</th><th>Equipment</th><th>Type</th><th>Inspector</th><th>Status</th><th></th></tr>
+          </thead>
+          <tbody id="inspectionsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Work Tickets -->
+  <div id="page-tickets" style="display:none">
+    <div class="page-header">
+      <div><div class="page-title">Work Tickets</div><div class="page-subtitle">Items needing attention</div></div>
+      <button class="btn btn-primary" onclick="showCreateTicket()">+ Create Ticket</button>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-chip active" onclick="filterTickets('all', this)">All</button>
+      <button class="filter-chip" onclick="filterTickets('open', this)">Open</button>
+      <button class="filter-chip" onclick="filterTickets('in_progress', this)">In Progress</button>
+      <button class="filter-chip" onclick="filterTickets('completed', this)">Completed</button>
+    </div>
+    <div class="card">
+      <div class="card-body" style="padding:0;overflow-x:auto">
+        <table class="data-table">
+          <thead>
+            <tr><th>Ticket</th><th>Equipment</th><th>Priority</th><th>Status</th><th>Created</th><th></th></tr>
+          </thead>
+          <tbody id="ticketsBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="modalContainer"></div>
+<div id="toastContainer"></div>
+
+<script>
+const API = '/api';
+let allEquipment = [];
+let allInspections = [];
+let allTickets = [];
+let currentFilter = 'all';
+let ticketFilter = 'all';
+
+// ===== CHECKLISTS =====
+const dailyChecklist = {
+  title: "Daily Telehandler Inspection",
+  subtitle: "Extendable Reach Forklift - 12,000 lb Capacity (JLG / Caterpillar)",
+  sections: [
+    {
+      name: "PRE-START VISUAL INSPECTION",
+      items: [
+        { id: "d1", label: "Tires - condition, inflation, lug nuts tight" },
+        { id: "d2", label: "Forks/carriage - cracks, wear, pins secured" },
+        { id: "d3", label: "Boom sections - no damage, dents, cracks" },
+        { id: "d4", label: "Boom wear pads - condition" },
+        { id: "d5", label: "Hydraulic cylinders - no leaks or damage" },
+        { id: "d6", label: "Hoses & fittings - secure, no leaks, no rubbing" },
+        { id: "d7", label: "Frame & chassis - cracks, damage, welds" },
+        { id: "d8", label: "Stabilizers/outriggers - pads, cylinders, pins" },
+        { id: "d9", label: "Counterweight - secure" },
+        { id: "d10", label: "Fluid levels (engine oil, coolant, hydraulic, fuel)" },
+        { id: "d11", label: "No visible leaks under unit" },
+        { id: "d12", label: "Fire extinguisher - present & charged" }
+      ]
+    },
+    {
+      name: "OPERATOR COMPARTMENT",
+      items: [
+        { id: "d13", label: "Cab/ROPS - structural integrity, secure" },
+        { id: "d14", label: "Seat & seatbelt - condition, operation" },
+        { id: "d15", label: "All mirrors - present, clean, adjusted" },
+        { id: "d16", label: "Gauges & warning lights functional" },
+        { id: "d17", label: "Joystick controls - boots intact, moves freely" },
+        { id: "d18", label: "Load moment indicator (LMI) - functional" },
+        { id: "d19", label: "Floor - clean, no loose items" },
+        { id: "d20", label: "Load chart - present, legible" }
+      ]
+    },
+    {
+      name: "OPERATIONAL CHECKS (ENGINE RUNNING)",
+      items: [
+        { id: "d21", label: "Engine starts properly - no unusual noise" },
+        { id: "d22", label: "Steering - smooth, full range (all modes)" },
+        { id: "d23", label: "Service brake - firm pedal, holds" },
+        { id: "d24", label: "Parking brake - holds on grade" },
+        { id: "d25", label: "Transmission - forward/reverse/neutral" },
+        { id: "d26", label: "Boom extend - smooth, full extension" },
+        { id: "d27", label: "Boom retract - smooth, full retraction" },
+        { id: "d28", label: "Boom raise - smooth operation" },
+        { id: "d29", label: "Boom lower - smooth, controlled" },
+        { id: "d30", label: "Fork tilt - forward and back smooth" },
+        { id: "d31", label: "Auxiliary hydraulics - smooth (if equipped)" },
+        { id: "d32", label: "Horn - working" },
+        { id: "d33", label: "Backup alarm - working" },
+        { id: "d34", label: "Lights - head, tail, work, warning all working" },
+        { id: "d35", label: "Windshield wipers - working (if equipped)" }
+      ]
+    }
+  ]
+};
+
+const weeklyChecklist = {
+  title: "Weekly Telehandler Inspection",
+  subtitle: "Extendable Reach Forklift - 12,000 lb Capacity (JLG / Caterpillar)",
+  sections: [
+    {
+      name: "LUBRICATION & FLUID SYSTEMS",
+      items: [
+        { id: "w1", label: "Grease all daily lube points per manual" },
+        { id: "w2", label: "Engine oil level & condition (color/smell)" },
+        { id: "w3", label: "Coolant level & condition (freeze protection)" },
+        { id: "w4", label: "Hydraulic oil level & condition" },
+        { id: "w5", label: "Transmission fluid level & condition" },
+        { id: "w6", label: "Fuel/water separator - drain if needed" },
+        { id: "w7", label: "Air filter indicator (if equipped)" }
+      ]
+    },
+    {
+      name: "BATTERY & ELECTRICAL",
+      items: [
+        { id: "w8", label: "Battery terminals - clean, tight, no corrosion" },
+        { id: "w9", label: "Battery hold-down - secure" },
+        { id: "w10", label: "Wiring harness - no chafing, connections tight" },
+        { id: "w11", label: "All lights - function test (head/tail/work/beacon)" },
+        { id: "w12", label: "Horn & backup alarm - function test" }
+      ]
+    },
+    {
+      name: "TIRES & WHEELS",
+      items: [
+        { id: "w13", label: "Tire pressure - all tires per spec" },
+        { id: "w14", label: "Tire wear - even, no chunking or sidewall damage" },
+        { id: "w15", label: "All lug nuts torqued to spec" },
+        { id: "w16", label: "No cuts, bulges, or embedded debris" },
+        { id: "w17", label: "Valve stems and caps present" }
+      ]
+    },
+    {
+      name: "BOOM SYSTEM",
+      items: [
+        { id: "w18", label: "Boom sections - detailed check for cracks/damage" },
+        { id: "w19", label: "Wear pads - thickness, condition" },
+        { id: "w20", label: "Boom chain/cable - condition, tension (if equipped)" },
+        { id: "w21", label: "Fork positioner - operation (if equipped)" },
+        { id: "w22", label: "Quick-coupler/attachment plate - condition, latches" },
+        { id: "w23", label: "Carriage rollers - condition, lubrication" },
+        { id: "w24", label: "Fork wear - thickness check" },
+        { id: "w25", label: "Fork heel - cracks, bending" },
+        { id: "w26", label: "Extend/retract cylinder - leaks, rod condition" },
+        { id: "w27", label: "Lift cylinder - leaks, rod condition" },
+        { id: "w28", label: "Boom pivot pins - wear, retention" },
+        { id: "w29", label: "All boom hydraulic fittings - tightness" }
+      ]
+    },
+    {
+      name: "SAFETY SYSTEMS",
+      items: [
+        { id: "w30", label: "Load moment indicator (LMI) - calibration check" },
+        { id: "w31", label: "Load chart - legible, matches machine" },
+        { id: "w32", label: "All safety decals - present and legible" },
+        { id: "w33", label: "Seat belt - webbing condition, latch function" },
+        { id: "w34", label: "ROPS/FOPS - structural integrity" }
+      ]
+    }
+  ]
+};
+
+const monthlyChecklist = {
+  title: "Monthly Telehandler Inspection",
+  subtitle: "Extendable Reach Forklift - 12,000 lb Capacity (JLG / Caterpillar)",
+  sections: [
+    {
+      name: "ENGINE & DRIVETRAIN",
+      items: [
+        { id: "m1", label: "Air filter - condition (clean or replace)" },
+        { id: "m2", label: "Fuel filter - condition" },
+        { id: "m3", label: "Engine belts - all belts condition & tension" },
+        { id: "m4", label: "Radiator - fins clean, no debris" },
+        { id: "m5", label: "Exhaust system - leaks, condition, mounting" },
+        { id: "m6", label: "Engine mounts - condition, tightness" },
+        { id: "m7", label: "Transmission - operation, shifting, noises" },
+        { id: "m8", label: "Drive axle - leaks, noises, operation" },
+        { id: "m9", label: "Axle oscillation/pivot - operation, wear" }
+      ]
+    },
+    {
+      name: "HYDRAULIC SYSTEM - COMPREHENSIVE",
+      items: [
+        { id: "m10", label: "Hydraulic tank - level, breather cap condition" },
+        { id: "m11", label: "Hydraulic filter - condition/replacement due" },
+        { id: "m12", label: "Hydraulic oil - sample for analysis (if due)" },
+        { id: "m13", label: "Boom lift cylinder - drift test (hold load 10 min)" },
+        { id: "m14", label: "Boom extend cylinder - drift test" },
+        { id: "m15", label: "Control valve - operation, leaks" },
+        { id: "m16", label: "Hydraulic pump - noise, pressure, operation" },
+        { id: "m17", label: "All hydraulic hose routing - chafing, support" }
+      ]
+    },
+    {
+      name: "STEERING SYSTEM",
+      items: [
+        { id: "m18", label: "Steering cylinder(s) - leaks, operation" },
+        { id: "m19", label: "Steering linkage - wear, play" },
+        { id: "m20", label: "Steering mode selector - all modes function" },
+        { id: "m21", label: "Power steering pump - noise, leaks" },
+        { id: "m22", label: "Steering hoses - condition, routing" }
+      ]
+    },
+    {
+      name: "BRAKE SYSTEM",
+      items: [
+        { id: "m23", label: "Service brake - performance, pedal feel" },
+        { id: "m24", label: "Parking brake - holds on grade (loaded)" },
+        { id: "m25", label: "Brake fluid level (if applicable)" },
+        { id: "m26", label: "Brake lines/hoses - condition, leaks" },
+        { id: "m27", label: "Brake wear indicators (if equipped)" }
+      ]
+    },
+    {
+      name: "STRUCTURAL",
+      items: [
+        { id: "m28", label: "Frame - cracks, damage, corrosion" },
+        { id: "m29", label: "Boom structure - detailed weld inspection" },
+        { id: "m30", label: "Counterweight mounting - bolts torqued" },
+        { id: "m31", label: "Outrigger/stabilizer structure & welds" },
+        { id: "m32", label: "Steps and handrails - secure, condition" },
+        { id: "m33", label: "All guards and covers - present, secure" }
+      ]
+    },
+    {
+      name: "ELECTRICAL",
+      items: [
+        { id: "m34", label: "Alternator output - voltage check" },
+        { id: "m35", label: "Starter - operation, connections" },
+        { id: "m36", label: "Ground connections - clean, tight" },
+        { id: "m37", label: "Control module - connections, error codes" },
+        { id: "m38", label: "Sensor calibration check (LMI, angle, etc.)" }
+      ]
+    }
+  ]
+};
+
+function getChecklist(type) {
+  if (type === 'daily') return dailyChecklist;
+  if (type === 'weekly') return weeklyChecklist;
+  if (type === 'monthly') return monthlyChecklist;
+  return dailyChecklist;
+}
+
+// ===== NAVIGATION =====
+function showPage(page) {
+  document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
+  document.getElementById('page-' + page).style.display = '';
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.nav-tab[data-page="${page}"]`).classList.add('active');
+
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'equipment') loadEquipment();
+  if (page === 'inspections') loadInspections();
+  if (page === 'tickets') loadTickets();
+}
+
+// ===== TOAST =====
+function showToast(msg, type='success') {
+  const c = document.getElementById('toastContainer');
+  const icon = type === 'success' ? '✓' : '✕';
+  c.innerHTML = `<div class="toast ${type}"><span>${icon}</span> ${msg}</div>`;
+  setTimeout(() => c.innerHTML = '', 3000);
+}
+
+// ===== API HELPERS =====
+async function apiGet(path) {
+  const r = await fetch(API + path);
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+}
+
+async function apiPost(path, data) {
+  const r = await fetch(API + path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'API error'); }
+  return r.json();
+}
+
+async function apiPut(path, data) {
+  const r = await fetch(API + path, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  });
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+}
+
+async function apiDelete(path) {
+  const r = await fetch(API + path, { method: 'DELETE' });
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+}
+
+// ===== DASHBOARD =====
+async function loadDashboard() {
+  try {
+    const data = await apiGet('/dashboard');
+    const grid = document.getElementById('statsGrid');
+    const totalEquip = Object.values(data.equipment_by_category || {}).reduce((a,b) => a+b, 0);
+
+    grid.innerHTML = `
+      <div class="stat-card"><div class="stat-value">${totalEquip}</div><div class="stat-label">Total Equipment</div></div>
+      <div class="stat-card"><div class="stat-value">${data.equipment_by_category?.field || 0}</div><div class="stat-label">Field Equipment</div></div>
+      <div class="stat-card"><div class="stat-value">${data.equipment_by_category?.shop || 0}</div><div class="stat-label">Shop Equipment</div></div>
+      <div class="stat-card ${data.open_work_tickets > 0 ? 'alert' : 'ok'}"><div class="stat-value">${data.open_work_tickets}</div><div class="stat-label">Open Work Tickets</div></div>
+      <div class="stat-card ${data.high_priority_tickets > 0 ? 'alert' : ''}"><div class="stat-value">${data.high_priority_tickets}</div><div class="stat-label">High Priority</div></div>
+    `;
+
+    const ri = document.getElementById('recentInspections');
+    if (!data.recent_inspections || data.recent_inspections.length === 0) {
+      ri.innerHTML = '<div class="empty-state"><p>No inspections yet. Start by adding equipment and running inspections.</p></div>';
+    } else {
+      ri.innerHTML = '<table class="data-table"><thead><tr><th>Date</th><th>Equipment</th><th>Type</th><th>Status</th></tr></thead><tbody>' +
+        data.recent_inspections.map(i => `<tr>
+          <td>${i.inspection_date}</td>
+          <td>${i.equipment_code || ''} <span style="color:var(--gray-500);font-size:12px">${i.equipment_type || ''}</span></td>
+          <td style="text-transform:capitalize">${i.inspection_type}</td>
+          <td><span class="status-tag status-${i.overall_status}">${fmtStatus(i.overall_status)}</span></td>
+        </tr>`).join('') + '</tbody></table>';
+    }
+
+    // Update ticket badge
+    const badge = document.getElementById('ticketBadge');
+    if (data.open_work_tickets > 0) {
+      badge.style.display = '';
+      badge.textContent = data.open_work_tickets;
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {
+    console.error('Dashboard error:', e);
+  }
+}
+
+function fmtStatus(s) {
+  return (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+// ===== EQUIPMENT =====
+async function loadEquipment() {
+  try {
+    allEquipment = await apiGet('/equipment?active_only=false');
+    renderEquipment();
+  } catch(e) { console.error(e); }
+}
+
+function renderEquipment() {
+  const grid = document.getElementById('equipmentGrid');
+  const filtered = currentFilter === 'all' ? allEquipment : allEquipment.filter(e => e.category === currentFilter);
+
+  if (filtered.length === 0) {
+    grid.innerHTML = '<div class="empty-state"><p>No equipment found. Add your first piece of equipment to get started.</p></div>';
+    return;
+  }
+
+  grid.innerHTML = filtered.map(eq => `
+    <div class="equip-card">
+      <div class="equip-card-head">
+        <div>
+          <div class="equip-id">${eq.equipment_id}</div>
+          <div class="equip-type">${eq.equipment_type}</div>
+        </div>
+        <span class="status-tag" style="font-size:11px;background:rgba(255,255,255,0.06);color:var(--gray-400)">${eq.category}</span>
+      </div>
+      <div class="equip-card-body">
+        ${eq.make ? `<div class="equip-detail"><span class="label">Make</span><span class="value">${eq.make}</span></div>` : ''}
+        ${eq.model ? `<div class="equip-detail"><span class="label">Model</span><span class="value">${eq.model}</span></div>` : ''}
+        ${eq.serial_number ? `<div class="equip-detail"><span class="label">Serial</span><span class="value">${eq.serial_number}</span></div>` : ''}
+        ${eq.capacity ? `<div class="equip-detail"><span class="label">Capacity</span><span class="value">${eq.capacity}</span></div>` : ''}
+        <div class="equip-actions">
+          <button class="inspect-btn" onclick="startInspection(${eq.id}, 'daily')">Daily</button>
+          <button class="inspect-btn" onclick="startInspection(${eq.id}, 'weekly')">Weekly</button>
+          <button class="inspect-btn" onclick="startInspection(${eq.id}, 'monthly')">Monthly</button>
+        </div>
+      </div>
+    </div>
+  `).join('');
+}
+
+function filterEquipment(filter, el) {
+  currentFilter = filter;
+  document.querySelectorAll('#page-equipment .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderEquipment();
+}
+
+// ===== ADD EQUIPMENT MODAL =====
+function showAddEquipment() {
+  const mc = document.getElementById('modalContainer');
+  mc.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><span class="modal-title">Add Equipment</span><button class="close-btn" onclick="closeModal()">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Equipment ID *</label>
+            <input class="form-input" id="eqId" placeholder="e.g. TH-001, FK-002, PIRANHA-01">
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Type *</label>
+              <select class="form-select" id="eqType" onchange="autoCategory()">
+                <option value="telehandler">Telehandler</option>
+                <option value="forklift">Forklift</option>
+                <option value="crane">Crane</option>
+                <option value="aerial-lift">Aerial Lift</option>
+                <option value="piranha-laser">Piranha Laser</option>
+                <option value="python-beam">Python Beam Line</option>
+                <option value="python-plasma">Python Plasma</option>
+                <option value="emi-cutting">EMI Cutting Machine</option>
+                <option value="press-brake">Press Brake</option>
+                <option value="plate-roller">Plate Roller</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select class="form-select" id="eqCategory">
+                <option value="field">Field</option>
+                <option value="shop">Shop</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Make</label>
+              <input class="form-input" id="eqMake" placeholder="e.g. JLG, Caterpillar">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Model</label>
+              <input class="form-input" id="eqModel" placeholder="e.g. 1255, TL1255D">
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Serial Number</label>
+              <input class="form-input" id="eqSerial">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Capacity</label>
+              <input class="form-input" id="eqCapacity" placeholder="e.g. 12,000 lbs">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveEquipment()">Add Equipment</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function autoCategory() {
+  const shopTypes = ['piranha-laser','python-beam','python-plasma','emi-cutting','press-brake','plate-roller'];
+  const type = document.getElementById('eqType').value;
+  document.getElementById('eqCategory').value = shopTypes.includes(type) ? 'shop' : 'field';
+}
+
+async function saveEquipment() {
+  const data = {
+    equipment_id: document.getElementById('eqId').value.trim(),
+    equipment_type: document.getElementById('eqType').value,
+    category: document.getElementById('eqCategory').value,
+    make: document.getElementById('eqMake').value.trim() || null,
+    model: document.getElementById('eqModel').value.trim() || null,
+    serial_number: document.getElementById('eqSerial').value.trim() || null,
+    capacity: document.getElementById('eqCapacity').value.trim() || null
+  };
+
+  if (!data.equipment_id) { showToast('Equipment ID is required', 'error'); return; }
+
+  try {
+    await apiPost('/equipment', data);
+    closeModal();
+    showToast('Equipment added');
+    loadEquipment();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ===== INSPECTION FORM =====
+function startInspection(equipmentId, type) {
+  const eq = allEquipment.find(e => e.id === equipmentId);
+  if (!eq) return;
+
+  const checklist = getChecklist(type);
+  const today = new Date().toISOString().split('T')[0];
+
+  let itemsHtml = checklist.sections.map(section => `
+    <div class="checklist-section">
+      <div class="section-title">${section.name}</div>
+      ${section.items.map(item => `
+        <div class="checklist-item">
+          <div style="flex:1">
+            <div class="item-label">${item.label}</div>
+            <input class="item-comment" data-id="${item.id}" placeholder="Comments (optional)" style="display:none">
+          </div>
+          <div class="status-btns">
+            <button class="status-btn ok" data-item="${item.id}" data-status="ok" onclick="setItemStatus(this)">OK</button>
+            <button class="status-btn fail" data-item="${item.id}" data-status="needs_attention" onclick="setItemStatus(this)">⚠</button>
+            <button class="status-btn na" data-item="${item.id}" data-status="na" onclick="setItemStatus(this)">N/A</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `).join('');
+
+  const mc = document.getElementById('modalContainer');
+  mc.innerHTML = `
+    <div class="modal-overlay">
+      <div class="modal modal-lg">
+        <div class="modal-header">
+          <div>
+            <div class="modal-title">${checklist.title}</div>
+            <div style="font-size:13px;color:var(--gray-400);margin-top:2px">${eq.equipment_id} — ${eq.make || ''} ${eq.model || ''}</div>
+          </div>
+          <button class="close-btn" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+          <div class="form-row" style="margin-bottom:20px">
+            <div class="form-group">
+              <label class="form-label">Inspector Name *</label>
+              <input class="form-input" id="inspName">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Date</label>
+              <input class="form-input" id="inspDate" type="date" value="${today}">
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:20px">
+            <label class="form-label">Hour Meter Reading</label>
+            <input class="form-input" id="inspHours" type="number" placeholder="Current hour meter" style="max-width:200px">
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px">
+            <button class="btn btn-sm btn-secondary" onclick="markAllOk()">Mark All OK</button>
+          </div>
+
+          ${itemsHtml}
+
+          <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06)">
+            <label class="form-label">Overall Equipment Status *</label>
+            <div class="overall-status-group">
+              <button class="overall-radio safe" data-val="safe" onclick="setOverall(this)">✓ Safe to Operate</button>
+              <button class="overall-radio needs_repair" data-val="needs_repair" onclick="setOverall(this)">⚠ Needs Repair</button>
+              <button class="overall-radio out_of_service" data-val="out_of_service" onclick="setOverall(this)">✕ Out of Service</button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top:16px">
+            <label class="form-label">General Comments</label>
+            <textarea class="form-textarea" id="inspComments" placeholder="Additional notes..."></textarea>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="submitInspection(${equipmentId}, '${type}')">Submit Inspection</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function setItemStatus(btn) {
+  const itemId = btn.dataset.item;
+  // Clear siblings
+  btn.parentElement.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  // Show comment field if needs_attention
+  const commentInput = document.querySelector(`input.item-comment[data-id="${itemId}"]`);
+  if (btn.dataset.status === 'needs_attention') {
+    commentInput.style.display = '';
+    commentInput.focus();
+  } else {
+    commentInput.style.display = 'none';
+  }
+}
+
+function setOverall(btn) {
+  document.querySelectorAll('.overall-radio').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+function markAllOk() {
+  document.querySelectorAll('.status-btn.ok').forEach(btn => {
+    btn.parentElement.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+  });
+}
+
+async function submitInspection(equipmentId, type) {
+  const name = document.getElementById('inspName').value.trim();
+  const date = document.getElementById('inspDate').value;
+  const hours = document.getElementById('inspHours').value;
+  const comments = document.getElementById('inspComments').value.trim();
+  const overall = document.querySelector('.overall-radio.selected');
+
+  if (!name) { showToast('Inspector name is required', 'error'); return; }
+  if (!overall) { showToast('Select overall equipment status', 'error'); return; }
+
+  const checklist = getChecklist(type);
+  const items = [];
+  let allAnswered = true;
+
+  checklist.sections.forEach(section => {
+    section.items.forEach(item => {
+      const selected = document.querySelector(`.status-btn.selected[data-item="${item.id}"]`);
+      if (!selected) { allAnswered = false; return; }
+      const comment = document.querySelector(`input.item-comment[data-id="${item.id}"]`);
+      items.push({
+        category: section.name,
+        item_name: item.label,
+        status: selected.dataset.status,
+        comments: comment ? comment.value.trim() || null : null
+      });
+    });
+  });
+
+  if (!allAnswered) { showToast('Please check all items (OK, ⚠, or N/A)', 'error'); return; }
+
+  try {
+    const result = await apiPost('/inspections', {
+      equipment_id: equipmentId,
+      inspection_type: type,
+      inspection_date: date,
+      inspector_name: name,
+      hour_meter_reading: hours ? parseInt(hours) : null,
+      overall_status: overall.dataset.val,
+      general_comments: comments || null,
+      items: items
+    });
+
+    closeModal();
+    let msg = 'Inspection submitted';
+    if (result.work_tickets_created > 0) {
+      msg += ` — ${result.work_tickets_created} work ticket(s) created`;
+    }
+    showToast(msg);
+    loadDashboard();
+    showPage('dashboard');
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ===== INSPECTIONS HISTORY =====
+async function loadInspections() {
+  try {
+    allInspections = await apiGet('/inspections');
+    renderInspections();
+  } catch(e) { console.error(e); }
+}
+
+function renderInspections() {
+  const tbody = document.getElementById('inspectionsBody');
+  if (allInspections.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray-500)">No inspections recorded yet</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = allInspections.map(i => `
+    <tr>
+      <td>${i.inspection_date}</td>
+      <td>${i.equipment_code || ''} <span style="color:var(--gray-500);font-size:12px">${i.equipment_type || ''}</span></td>
+      <td style="text-transform:capitalize">${i.inspection_type}</td>
+      <td>${i.inspector_name}</td>
+      <td><span class="status-tag status-${i.overall_status}">${fmtStatus(i.overall_status)}</span></td>
+      <td><button class="btn btn-ghost btn-sm" onclick="viewInspection(${i.id})">View</button></td>
+    </tr>
+  `).join('');
+}
+
+async function viewInspection(id) {
+  try {
+    const insp = await apiGet('/inspections/' + id);
+    const mc = document.getElementById('modalContainer');
+
+    const grouped = {};
+    (insp.items || []).forEach(item => {
+      if (!grouped[item.category]) grouped[item.category] = [];
+      grouped[item.category].push(item);
+    });
+
+    mc.innerHTML = `
+      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal modal-lg">
+          <div class="modal-header">
+            <div>
+              <div class="modal-title">${fmtStatus(insp.inspection_type)} Inspection — ${insp.equipment_code || ''}</div>
+              <div style="font-size:13px;color:var(--gray-400)">${insp.inspection_date} by ${insp.inspector_name}</div>
+            </div>
+            <button class="close-btn" onclick="closeModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="insp-detail-grid">
+              <div class="insp-detail-item"><div class="dl">Equipment</div><div class="dv">${insp.equipment_code} — ${insp.equipment_type || ''} ${insp.make || ''} ${insp.model || ''}</div></div>
+              <div class="insp-detail-item"><div class="dl">Hour Meter</div><div class="dv">${insp.hour_meter_reading || 'N/A'}</div></div>
+              <div class="insp-detail-item"><div class="dl">Status</div><div class="dv"><span class="status-tag status-${insp.overall_status}">${fmtStatus(insp.overall_status)}</span></div></div>
+              <div class="insp-detail-item"><div class="dl">Comments</div><div class="dv">${insp.general_comments || 'None'}</div></div>
+            </div>
+
+            ${Object.entries(grouped).map(([cat, items]) => `
+              <div class="checklist-section">
+                <div class="section-title">${cat}</div>
+                ${items.map(item => `
+                  <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.03)">
+                    <span class="item-status-dot dot-${item.status}"></span>
+                    <span style="flex:1;font-size:14px">${item.item_name}</span>
+                    <span style="font-size:12px;color:var(--gray-500)">${item.status === 'ok' ? 'OK' : item.status === 'needs_attention' ? 'Needs Attention' : 'N/A'}</span>
+                  </div>
+                  ${item.comments ? `<div style="font-size:13px;color:var(--yellow);padding:2px 0 6px 18px">↳ ${item.comments}</div>` : ''}
+                `).join('')}
+              </div>
+            `).join('')}
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch(e) { showToast('Failed to load inspection', 'error'); }
+}
+
+// ===== WORK TICKETS =====
+async function loadTickets() {
+  try {
+    allTickets = await apiGet('/work-tickets');
+    renderTickets();
+  } catch(e) { console.error(e); }
+}
+
+function renderTickets() {
+  const tbody = document.getElementById('ticketsBody');
+  const filtered = ticketFilter === 'all' ? allTickets : allTickets.filter(t => t.status === ticketFilter);
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray-500)">No work tickets found</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(t => `
+    <tr>
+      <td><strong>${t.title}</strong>${t.description ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px">${t.description.substring(0,80)}</div>` : ''}</td>
+      <td>${t.equipment_code || ''}</td>
+      <td><span class="status-tag priority-${t.priority}">${fmtStatus(t.priority)}</span></td>
+      <td><span class="status-tag status-${t.status}">${fmtStatus(t.status)}</span></td>
+      <td style="font-size:13px;color:var(--gray-400)">${t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</td>
+      <td>
+        ${t.status !== 'completed' ? `
+          <button class="btn btn-ghost btn-sm" onclick="updateTicketStatus(${t.id}, '${t.status === 'open' ? 'in_progress' : 'completed'}')">
+            ${t.status === 'open' ? 'Start' : 'Complete'}
+          </button>
+        ` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+function filterTickets(filter, el) {
+  ticketFilter = filter;
+  document.querySelectorAll('#page-tickets .filter-chip').forEach(c => c.classList.remove('active'));
+  el.classList.add('active');
+  renderTickets();
+}
+
+async function updateTicketStatus(id, newStatus) {
+  try {
+    const updates = { status: newStatus };
+    if (newStatus === 'completed') {
+      const name = prompt('Completed by (your name):');
+      if (!name) return;
+      updates.completed_by = name;
+    }
+    await apiPut('/work-tickets/' + id, updates);
+    showToast('Ticket updated');
+    loadTickets();
+  } catch(e) { showToast('Failed to update ticket', 'error'); }
+}
+
+function showCreateTicket() {
+  const mc = document.getElementById('modalContainer');
+  const eqOptions = allEquipment.length > 0
+    ? allEquipment.map(e => `<option value="${e.id}">${e.equipment_id} — ${e.equipment_type}</option>`).join('')
+    : '<option value="">No equipment added yet</option>';
+
+  mc.innerHTML = `
+    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+      <div class="modal">
+        <div class="modal-header"><span class="modal-title">Create Work Ticket</span><button class="close-btn" onclick="closeModal()">&times;</button></div>
+        <div class="modal-body">
+          <div class="form-group">
+            <label class="form-label">Equipment *</label>
+            <select class="form-select" id="wtEquip">${eqOptions}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Title *</label>
+            <input class="form-input" id="wtTitle" placeholder="Brief description of the issue">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Description</label>
+            <textarea class="form-textarea" id="wtDesc" placeholder="Detailed description..."></textarea>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Priority</label>
+              <select class="form-select" id="wtPriority">
+                <option value="normal">Normal</option>
+                <option value="high">High</option>
+                <option value="low">Low</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Assign To</label>
+              <input class="form-input" id="wtAssign" placeholder="Person's name">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+          <button class="btn btn-primary" onclick="saveTicket()">Create Ticket</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Load equipment if not loaded
+  if (allEquipment.length === 0) {
+    apiGet('/equipment').then(eq => {
+      allEquipment = eq;
+      document.getElementById('wtEquip').innerHTML = eq.map(e =>
+        `<option value="${e.id}">${e.equipment_id} — ${e.equipment_type}</option>`
+      ).join('');
+    });
+  }
+}
+
+async function saveTicket() {
+  const data = {
+    equipment_id: parseInt(document.getElementById('wtEquip').value),
+    title: document.getElementById('wtTitle').value.trim(),
+    description: document.getElementById('wtDesc').value.trim() || null,
+    priority: document.getElementById('wtPriority').value,
+    assigned_to: document.getElementById('wtAssign').value.trim() || null
+  };
+
+  if (!data.title) { showToast('Title is required', 'error'); return; }
+  if (!data.equipment_id) { showToast('Select equipment', 'error'); return; }
+
+  try {
+    await apiPost('/work-tickets', data);
+    closeModal();
+    showToast('Work ticket created');
+    loadTickets();
+  } catch(e) { showToast(e.message, 'error'); }
+}
+
+// ===== MODAL CLOSE =====
+function closeModal() {
+  document.getElementById('modalContainer').innerHTML = '';
+}
+
+// ===== INIT =====
+loadDashboard();
+</script>
+</body>
 </html>
