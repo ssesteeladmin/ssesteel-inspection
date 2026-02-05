@@ -1,1580 +1,1449 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SSE Equipment Inspections</title>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@700&display=swap" rel="stylesheet">
-<style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-:root {
-  --navy: #0a1628;
-  --navy-light: #132038;
-  --navy-mid: #1a2d4a;
-  --orange: #e8612d;
-  --orange-hover: #d4551f;
-  --green: #22c55e;
-  --green-bg: #052e16;
-  --yellow: #eab308;
-  --yellow-bg: #422006;
-  --red: #ef4444;
-  --red-bg: #450a0a;
-  --blue: #3b82f6;
-  --gray-100: #f1f5f9;
-  --gray-200: #e2e8f0;
-  --gray-300: #cbd5e1;
-  --gray-400: #94a3b8;
-  --gray-500: #64748b;
-  --gray-600: #475569;
-  --gray-700: #334155;
-  --gray-800: #1e293b;
-  --gray-900: #0f172a;
-  --radius: 10px;
-  --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 12px rgba(0,0,0,0.2);
-  --shadow-lg: 0 4px 16px rgba(0,0,0,0.4), 0 8px 32px rgba(0,0,0,0.3);
-}
-
-body {
-  font-family: 'DM Sans', sans-serif;
-  background: var(--navy);
-  color: #e2e8f0;
-  min-height: 100vh;
-}
-
-/* NAV */
-.topnav {
-  background: var(--navy-light);
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  padding: 0 24px;
-  display: flex;
-  align-items: center;
-  height: 60px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-}
-
-.topnav .logo {
-  font-family: 'Space Mono', monospace;
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--orange);
-  letter-spacing: -0.5px;
-  margin-right: 40px;
-}
-
-.topnav .logo span { color: var(--gray-400); font-weight: 400; }
-
-.nav-tabs {
-  display: flex;
-  gap: 4px;
-  height: 100%;
-  align-items: stretch;
-}
-
-.nav-tab {
-  background: none;
-  border: none;
-  color: var(--gray-400);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 500;
-  padding: 0 16px;
-  cursor: pointer;
-  position: relative;
-  transition: color 0.2s;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.nav-tab:hover { color: var(--gray-200); }
-.nav-tab.active { color: #fff; }
-.nav-tab.active::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 8px;
-  right: 8px;
-  height: 2px;
-  background: var(--orange);
-  border-radius: 2px 2px 0 0;
-}
-
-.badge {
-  background: var(--orange);
-  color: #fff;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 1px 6px;
-  border-radius: 10px;
-  min-width: 18px;
-  text-align: center;
-}
-
-/* MAIN CONTENT */
-.main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-}
-
-.page-title {
-  font-size: 24px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.page-subtitle {
-  color: var(--gray-400);
-  font-size: 14px;
-  margin-top: 4px;
-}
-
-/* BUTTONS */
-.btn {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  font-weight: 600;
-  padding: 10px 20px;
-  border-radius: var(--radius);
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  transition: all 0.15s;
-}
-
-.btn-primary {
-  background: var(--orange);
-  color: #fff;
-}
-.btn-primary:hover { background: var(--orange-hover); transform: translateY(-1px); }
-
-.btn-secondary {
-  background: var(--navy-mid);
-  color: var(--gray-200);
-  border: 1px solid rgba(255,255,255,0.1);
-}
-.btn-secondary:hover { background: var(--gray-700); }
-
-.btn-ghost {
-  background: transparent;
-  color: var(--gray-400);
-  padding: 8px 12px;
-}
-.btn-ghost:hover { color: #fff; background: rgba(255,255,255,0.05); }
-
-.btn-sm { padding: 6px 14px; font-size: 13px; }
-
-.btn-danger { background: var(--red-bg); color: var(--red); border: 1px solid rgba(239,68,68,0.3); }
-.btn-danger:hover { background: rgba(239,68,68,0.2); }
-
-/* CARDS */
-.card {
-  background: var(--navy-light);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--radius);
-  overflow: hidden;
-}
-
-.card-header {
-  padding: 16px 20px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.card-body { padding: 20px; }
-
-/* GRID */
-.equipment-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-}
-
-.equip-card {
-  background: var(--navy-light);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--radius);
-  transition: border-color 0.2s, box-shadow 0.2s;
-  overflow: hidden;
-}
-
-.equip-card:hover {
-  border-color: rgba(255,255,255,0.12);
-  box-shadow: var(--shadow);
-}
-
-.equip-card-head {
-  background: var(--navy-mid);
-  padding: 16px 20px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.equip-id {
-  font-family: 'Space Mono', monospace;
-  font-size: 16px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.equip-type {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--orange);
-}
-
-.equip-card-body { padding: 16px 20px; }
-
-.equip-detail {
-  display: flex;
-  justify-content: space-between;
-  padding: 4px 0;
-  font-size: 13px;
-}
-.equip-detail .label { color: var(--gray-400); }
-.equip-detail .value { color: var(--gray-200); }
-
-.equip-actions {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-}
-
-.inspect-btn {
-  flex: 1;
-  background: rgba(232,97,45,0.1);
-  border: 1px solid rgba(232,97,45,0.3);
-  color: var(--orange);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.inspect-btn:hover { background: rgba(232,97,45,0.2); }
-
-/* FILTER BAR */
-.filter-bar {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-
-.filter-chip {
-  background: var(--navy-mid);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: var(--gray-400);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  font-weight: 500;
-  padding: 6px 16px;
-  border-radius: 20px;
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.filter-chip:hover { border-color: rgba(255,255,255,0.15); color: var(--gray-200); }
-.filter-chip.active {
-  background: rgba(232,97,45,0.15);
-  border-color: var(--orange);
-  color: var(--orange);
-}
-
-/* MODAL */
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 200;
-  animation: fadeIn 0.15s;
-}
-
-.modal {
-  background: var(--navy-light);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 14px;
-  width: 90%;
-  max-width: 600px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: var(--shadow-lg);
-  animation: slideUp 0.2s;
-}
-
-.modal-lg { max-width: 900px; }
-
-.modal-header {
-  padding: 20px 24px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.modal-title { font-size: 18px; font-weight: 700; color: #fff; }
-
-.modal-body { padding: 24px; }
-
-.modal-footer {
-  padding: 16px 24px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  display: flex;
-  justify-content: flex-end;
-  gap: 12px;
-}
-
-.close-btn {
-  background: none;
-  border: none;
-  color: var(--gray-400);
-  font-size: 20px;
-  cursor: pointer;
-  padding: 4px 8px;
-  border-radius: 6px;
-}
-.close-btn:hover { color: #fff; background: rgba(255,255,255,0.05); }
-
-/* FORMS */
-.form-group { margin-bottom: 16px; }
-
-.form-label {
-  display: block;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--gray-400);
-  margin-bottom: 6px;
-}
-
-.form-input, .form-select, .form-textarea {
-  width: 100%;
-  background: var(--navy);
-  border: 1px solid rgba(255,255,255,0.1);
-  color: #fff;
-  font-family: 'DM Sans', sans-serif;
-  font-size: 14px;
-  padding: 10px 14px;
-  border-radius: 8px;
-  transition: border-color 0.15s;
-}
-
-.form-input:focus, .form-select:focus, .form-textarea:focus {
-  outline: none;
-  border-color: var(--orange);
-}
-
-.form-select option { background: var(--navy-light); }
-.form-textarea { resize: vertical; min-height: 80px; }
-
-.form-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-/* INSPECTION FORM */
-.checklist-section {
-  margin-bottom: 24px;
-}
-
-.section-title {
-  font-size: 13px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: var(--orange);
-  margin-bottom: 12px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.checklist-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-}
-
-.checklist-item:last-child { border-bottom: none; }
-
-.item-label {
-  flex: 1;
-  font-size: 14px;
-  color: var(--gray-200);
-  line-height: 1.4;
-}
-
-.status-btns {
-  display: flex;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.status-btn {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255,255,255,0.1);
-  background: transparent;
-  color: var(--gray-500);
-  cursor: pointer;
-  transition: all 0.1s;
-}
-
-.status-btn.ok.selected { background: var(--green-bg); border-color: var(--green); color: var(--green); }
-.status-btn.na.selected { background: rgba(100,116,139,0.2); border-color: var(--gray-500); color: var(--gray-300); }
-.status-btn.fail.selected { background: var(--yellow-bg); border-color: var(--yellow); color: var(--yellow); }
-.status-btn:hover { border-color: rgba(255,255,255,0.2); }
-
-.item-comment {
-  width: 100%;
-  background: var(--navy);
-  border: 1px solid rgba(255,255,255,0.08);
-  color: var(--gray-200);
-  font-family: 'DM Sans', sans-serif;
-  font-size: 13px;
-  padding: 6px 10px;
-  border-radius: 6px;
-  margin-top: 6px;
-}
-
-/* STATUS BADGES */
-.status-tag {
-  font-size: 12px;
-  font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 6px;
-  display: inline-block;
-}
-
-.status-safe { background: var(--green-bg); color: var(--green); }
-.status-needs_repair { background: var(--yellow-bg); color: var(--yellow); }
-.status-out_of_service { background: var(--red-bg); color: var(--red); }
-.status-open { background: rgba(59,130,246,0.15); color: var(--blue); }
-.status-in_progress { background: var(--yellow-bg); color: var(--yellow); }
-.status-completed { background: var(--green-bg); color: var(--green); }
-.priority-high { background: var(--red-bg); color: var(--red); }
-.priority-normal { background: rgba(59,130,246,0.15); color: var(--blue); }
-.priority-low { background: rgba(100,116,139,0.2); color: var(--gray-400); }
-
-/* TABLE */
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.data-table th {
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--gray-500);
-  padding: 10px 16px;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.data-table td {
-  padding: 12px 16px;
-  font-size: 14px;
-  border-bottom: 1px solid rgba(255,255,255,0.03);
-  vertical-align: middle;
-}
-
-.data-table tr:hover td { background: rgba(255,255,255,0.02); }
-
-/* DASHBOARD STATS */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-.stat-card {
-  background: var(--navy-light);
-  border: 1px solid rgba(255,255,255,0.06);
-  border-radius: var(--radius);
-  padding: 20px;
-}
-
-.stat-value {
-  font-family: 'Space Mono', monospace;
-  font-size: 32px;
-  font-weight: 700;
-  color: #fff;
-}
-
-.stat-label {
-  font-size: 13px;
-  color: var(--gray-400);
-  margin-top: 4px;
-}
-
-.stat-card.alert { border-color: rgba(239,68,68,0.3); }
-.stat-card.alert .stat-value { color: var(--red); }
-.stat-card.ok .stat-value { color: var(--green); }
-
-/* EMPTY STATE */
-.empty-state {
-  text-align: center;
-  padding: 60px 20px;
-  color: var(--gray-500);
-}
-
-.empty-state svg {
-  width: 48px;
-  height: 48px;
-  stroke: var(--gray-600);
-  margin-bottom: 16px;
-}
-
-.empty-state p { margin-top: 8px; }
-
-/* TOAST */
-.toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: var(--navy-light);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: var(--radius);
-  padding: 14px 20px;
-  box-shadow: var(--shadow-lg);
-  z-index: 300;
-  animation: slideUp 0.3s;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-}
-
-.toast.success { border-color: rgba(34,197,94,0.4); }
-.toast.error { border-color: rgba(239,68,68,0.4); }
-
-/* ANIMATIONS */
-@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
-
-/* RESPONSIVE */
-@media (max-width: 768px) {
-  .topnav { padding: 0 12px; }
-  .topnav .logo { margin-right: 16px; font-size: 15px; }
-  .nav-tab { padding: 0 10px; font-size: 13px; }
-  .main { padding: 16px; }
-  .equipment-grid { grid-template-columns: 1fr; }
-  .form-row { grid-template-columns: 1fr; }
-  .modal { width: 95%; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-}
-
-/* Overall Status Radio */
-.overall-status-group {
-  display: flex;
-  gap: 12px;
-  margin: 16px 0;
-}
-
-.overall-radio {
-  flex: 1;
-  padding: 12px;
-  border: 2px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-  text-align: center;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-  transition: all 0.15s;
-  background: transparent;
-  font-family: 'DM Sans', sans-serif;
-  color: var(--gray-400);
-}
-
-.overall-radio:hover { border-color: rgba(255,255,255,0.2); }
-.overall-radio.safe.selected { border-color: var(--green); color: var(--green); background: var(--green-bg); }
-.overall-radio.needs_repair.selected { border-color: var(--yellow); color: var(--yellow); background: var(--yellow-bg); }
-.overall-radio.out_of_service.selected { border-color: var(--red); color: var(--red); background: var(--red-bg); }
-
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; }
-::-webkit-scrollbar-track { background: var(--navy); }
-::-webkit-scrollbar-thumb { background: var(--gray-700); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--gray-600); }
-
-/* Inspection detail view */
-.insp-detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.insp-detail-item .dl { font-size: 12px; color: var(--gray-500); }
-.insp-detail-item .dv { font-size: 14px; color: #fff; margin-top: 2px; }
-
-.item-status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  margin-right: 6px;
-}
-.dot-ok { background: var(--green); }
-.dot-na { background: var(--gray-500); }
-.dot-needs_attention { background: var(--yellow); }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SSE Equipment Inspections</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'sse-navy': '#1a2332',
+                        'sse-orange': '#f37920',
+                        'sse-blue': '#2563eb',
+                        'sse-gray': '#64748b'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f1f5f9; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .status-ok { background: #dcfce7; color: #166534; }
+        .status-attn { background: #fef3c7; color: #92400e; }
+        .status-na { background: #f1f5f9; color: #64748b; }
+    </style>
 </head>
 <body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useCallback, useRef } = React;
 
-<nav class="topnav">
-  <div class="logo">SSE <span>Inspections</span></div>
-  <div class="nav-tabs">
-    <button class="nav-tab active" data-page="dashboard" onclick="showPage('dashboard')">Dashboard</button>
-    <button class="nav-tab" data-page="equipment" onclick="showPage('equipment')">Equipment</button>
-    <button class="nav-tab" data-page="inspections" onclick="showPage('inspections')">History</button>
-    <button class="nav-tab" data-page="tickets" onclick="showPage('tickets')">
-      Work Tickets <span class="badge" id="ticketBadge" style="display:none">0</span>
-    </button>
-  </div>
-</nav>
-
-<div class="main" id="app">
-  <!-- Dashboard -->
-  <div id="page-dashboard">
-    <div class="page-header">
-      <div><div class="page-title">Dashboard</div><div class="page-subtitle">Equipment inspection overview</div></div>
-    </div>
-    <div class="stats-grid" id="statsGrid"></div>
-    <div class="card">
-      <div class="card-header"><span style="font-weight:600">Recent Inspections</span></div>
-      <div class="card-body" id="recentInspections"><div class="empty-state"><p>Loading...</p></div></div>
-    </div>
-  </div>
-
-  <!-- Equipment -->
-  <div id="page-equipment" style="display:none">
-    <div class="page-header">
-      <div><div class="page-title">Equipment</div><div class="page-subtitle">Manage your fleet</div></div>
-      <button class="btn btn-primary" onclick="showAddEquipment()">+ Add Equipment</button>
-    </div>
-    <div class="filter-bar">
-      <button class="filter-chip active" onclick="filterEquipment('all', this)">All</button>
-      <button class="filter-chip" onclick="filterEquipment('field', this)">Field</button>
-      <button class="filter-chip" onclick="filterEquipment('shop', this)">Shop</button>
-    </div>
-    <div class="equipment-grid" id="equipmentGrid"></div>
-  </div>
-
-  <!-- Inspections History -->
-  <div id="page-inspections" style="display:none">
-    <div class="page-header">
-      <div><div class="page-title">Inspection History</div><div class="page-subtitle">All completed inspections</div></div>
-    </div>
-    <div class="card">
-      <div class="card-body" style="padding:0;overflow-x:auto">
-        <table class="data-table" id="inspectionsTable">
-          <thead>
-            <tr><th>Date</th><th>Equipment</th><th>Type</th><th>Inspector</th><th>Status</th><th></th></tr>
-          </thead>
-          <tbody id="inspectionsBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Work Tickets -->
-  <div id="page-tickets" style="display:none">
-    <div class="page-header">
-      <div><div class="page-title">Work Tickets</div><div class="page-subtitle">Items needing attention</div></div>
-      <button class="btn btn-primary" onclick="showCreateTicket()">+ Create Ticket</button>
-    </div>
-    <div class="filter-bar">
-      <button class="filter-chip active" onclick="filterTickets('all', this)">All</button>
-      <button class="filter-chip" onclick="filterTickets('open', this)">Open</button>
-      <button class="filter-chip" onclick="filterTickets('in_progress', this)">In Progress</button>
-      <button class="filter-chip" onclick="filterTickets('completed', this)">Completed</button>
-    </div>
-    <div class="card">
-      <div class="card-body" style="padding:0;overflow-x:auto">
-        <table class="data-table">
-          <thead>
-            <tr><th>Ticket</th><th>Equipment</th><th>Priority</th><th>Status</th><th>Created</th><th></th></tr>
-          </thead>
-          <tbody id="ticketsBody"></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div id="modalContainer"></div>
-<div id="toastContainer"></div>
-
-<script>
-const API = '/api';
-let allEquipment = [];
-let allInspections = [];
-let allTickets = [];
-let currentFilter = 'all';
-let ticketFilter = 'all';
-
-// ===== CHECKLISTS =====
-const dailyChecklist = {
-  title: "Daily Telehandler Inspection",
-  subtitle: "Extendable Reach Forklift - 12,000 lb Capacity (JLG / Caterpillar)",
-  sections: [
-    {
-      name: "PRE-START VISUAL INSPECTION",
-      items: [
-        { id: "d1", label: "Tires - condition, inflation, lug nuts tight" },
-        { id: "d2", label: "Forks/carriage - cracks, wear, pins secured" },
-        { id: "d3", label: "Boom sections - no damage, dents, cracks" },
-        { id: "d4", label: "Boom wear pads - condition" },
-        { id: "d5", label: "Hydraulic cylinders - no leaks or damage" },
-        { id: "d6", label: "Hoses & fittings - secure, no leaks, no rubbing" },
-        { id: "d7", label: "Frame & chassis - cracks, damage, welds" },
-        { id: "d8", label: "Stabilizers/outriggers - pads, cylinders, pins" },
-        { id: "d9", label: "Counterweight - secure" },
-        { id: "d10", label: "Fluid levels (engine oil, coolant, hydraulic, fuel)" },
-        { id: "d11", label: "No visible leaks under unit" },
-        { id: "d12", label: "Fire extinguisher - present & charged" }
-      ]
-    },
-    {
-      name: "OPERATOR COMPARTMENT",
-      items: [
-        { id: "d13", label: "Cab/ROPS - structural integrity, secure" },
-        { id: "d14", label: "Seat & seatbelt - condition, operation" },
-        { id: "d15", label: "All mirrors - present, clean, adjusted" },
-        { id: "d16", label: "Gauges & warning lights functional" },
-        { id: "d17", label: "Joystick controls - boots intact, moves freely" },
-        { id: "d18", label: "Load moment indicator (LMI) - functional" },
-        { id: "d19", label: "Floor - clean, no loose items" },
-        { id: "d20", label: "Load chart - present, legible" }
-      ]
-    },
-    {
-      name: "OPERATIONAL CHECKS (ENGINE RUNNING)",
-      items: [
-        { id: "d21", label: "Engine starts properly - no unusual noise" },
-        { id: "d22", label: "Steering - smooth, full range (all modes)" },
-        { id: "d23", label: "Service brake - firm pedal, holds" },
-        { id: "d24", label: "Parking brake - holds on grade" },
-        { id: "d25", label: "Transmission - forward/reverse/neutral" },
-        { id: "d26", label: "Boom extend - smooth, full extension" },
-        { id: "d27", label: "Boom retract - smooth, full retraction" },
-        { id: "d28", label: "Boom raise - smooth operation" },
-        { id: "d29", label: "Boom lower - smooth, controlled" },
-        { id: "d30", label: "Fork tilt - forward and back smooth" },
-        { id: "d31", label: "Auxiliary hydraulics - smooth (if equipped)" },
-        { id: "d32", label: "Horn - working" },
-        { id: "d33", label: "Backup alarm - working" },
-        { id: "d34", label: "Lights - head, tail, work, warning all working" },
-        { id: "d35", label: "Windshield wipers - working (if equipped)" }
-      ]
-    }
-  ]
+// =============================================================================
+// API HELPER
+// =============================================================================
+const API = {
+    get: async (url) => { const r = await fetch('/api' + url); if (!r.ok) throw new Error(r.statusText); return r.json(); },
+    post: async (url, data) => { const r = await fetch('/api' + url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || r.statusText); } return r.json(); },
+    put: async (url, data) => { const r = await fetch('/api' + url, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) }); if (!r.ok) throw new Error(r.statusText); return r.json(); },
+    del: async (url) => { const r = await fetch('/api' + url, { method: 'DELETE' }); if (!r.ok) throw new Error(r.statusText); return r.json(); }
 };
 
-const weeklyChecklist = {
-  title: "Weekly Telehandler Inspection",
-  subtitle: "Extendable Reach Forklift - 12,000 lb Capacity (JLG / Caterpillar)",
-  sections: [
-    {
-      name: "LUBRICATION & FLUID SYSTEMS",
-      items: [
-        { id: "w1", label: "Grease all daily lube points per manual" },
-        { id: "w2", label: "Engine oil level & condition (color/smell)" },
-        { id: "w3", label: "Coolant level & condition (freeze protection)" },
-        { id: "w4", label: "Hydraulic oil level & condition" },
-        { id: "w5", label: "Transmission fluid level & condition" },
-        { id: "w6", label: "Fuel/water separator - drain if needed" },
-        { id: "w7", label: "Air filter indicator (if equipped)" }
-      ]
-    },
-    {
-      name: "BATTERY & ELECTRICAL",
-      items: [
-        { id: "w8", label: "Battery terminals - clean, tight, no corrosion" },
-        { id: "w9", label: "Battery hold-down - secure" },
-        { id: "w10", label: "Wiring harness - no chafing, connections tight" },
-        { id: "w11", label: "All lights - function test (head/tail/work/beacon)" },
-        { id: "w12", label: "Horn & backup alarm - function test" }
-      ]
-    },
-    {
-      name: "TIRES & WHEELS",
-      items: [
-        { id: "w13", label: "Tire pressure - all tires per spec" },
-        { id: "w14", label: "Tire wear - even, no chunking or sidewall damage" },
-        { id: "w15", label: "All lug nuts torqued to spec" },
-        { id: "w16", label: "No cuts, bulges, or embedded debris" },
-        { id: "w17", label: "Valve stems and caps present" }
-      ]
-    },
-    {
-      name: "BOOM SYSTEM",
-      items: [
-        { id: "w18", label: "Boom sections - detailed check for cracks/damage" },
-        { id: "w19", label: "Wear pads - thickness, condition" },
-        { id: "w20", label: "Boom chain/cable - condition, tension (if equipped)" },
-        { id: "w21", label: "Fork positioner - operation (if equipped)" },
-        { id: "w22", label: "Quick-coupler/attachment plate - condition, latches" },
-        { id: "w23", label: "Carriage rollers - condition, lubrication" },
-        { id: "w24", label: "Fork wear - thickness check" },
-        { id: "w25", label: "Fork heel - cracks, bending" },
-        { id: "w26", label: "Extend/retract cylinder - leaks, rod condition" },
-        { id: "w27", label: "Lift cylinder - leaks, rod condition" },
-        { id: "w28", label: "Boom pivot pins - wear, retention" },
-        { id: "w29", label: "All boom hydraulic fittings - tightness" }
-      ]
-    },
-    {
-      name: "SAFETY SYSTEMS",
-      items: [
-        { id: "w30", label: "Load moment indicator (LMI) - calibration check" },
-        { id: "w31", label: "Load chart - legible, matches machine" },
-        { id: "w32", label: "All safety decals - present and legible" },
-        { id: "w33", label: "Seat belt - webbing condition, latch function" },
-        { id: "w34", label: "ROPS/FOPS - structural integrity" }
-      ]
-    }
-  ]
+// =============================================================================
+// EQUIPMENT DEFINITIONS
+// =============================================================================
+const EQUIPMENT_SEED = [
+    { equipment_id: 'BIG-RED-01', equipment_type: 'telehandler_33k', category: 'field', make: 'Taylor', model: 'Forklift 33K', serial_number: '', capacity: '33,000 lb' },
+    { equipment_id: 'BLUE-GENIE-01', equipment_type: 'telehandler_12k', category: 'field', make: 'Genie', model: 'Telehandler 12K', serial_number: '', capacity: '12,000 lb' },
+    { equipment_id: 'GREEN-JLG-01', equipment_type: 'telehandler_12k', category: 'field', make: 'JLG', model: 'Telehandler 12K', serial_number: '0160064879', capacity: '12,000 lb' },
+    { equipment_id: 'ORANGE-GENIE-01', equipment_type: 'telehandler_12k', category: 'field', make: 'Genie', model: 'Telehandler 12K', serial_number: '', capacity: '12,000 lb' },
+    { equipment_id: 'EMI-TC-01', equipment_type: 'emi_tube_cutter', category: 'shop', make: 'EMI', model: 'TPC2464 Tube Cutter', serial_number: '', capacity: '5" Max' },
+    { equipment_id: 'MILLER-350P-01', equipment_type: 'miller_welder', category: 'shop', make: 'Miller', model: 'Millermatic 350P', serial_number: '', capacity: '' },
+];
+
+const EQUIPMENT_DISPLAY = {
+    'telehandler_33k': { label: 'Telehandler 33K (BIG RED)', icon: '🔴', color: 'red' },
+    'telehandler_12k': { label: 'Telehandler 12K', icon: '🏗️', color: 'blue' },
+    'emi_tube_cutter': { label: 'EMI TPC2464 Tube Cutter', icon: '⚙️', color: 'purple' },
+    'miller_welder': { label: 'Miller Millermatic 350P', icon: '🔥', color: 'orange' },
 };
 
-const monthlyChecklist = {
-  title: "Monthly Telehandler Inspection",
-  subtitle: "Extendable Reach Forklift - 12,000 lb Capacity (JLG / Caterpillar)",
-  sections: [
-    {
-      name: "ENGINE & DRIVETRAIN",
-      items: [
-        { id: "m1", label: "Air filter - condition (clean or replace)" },
-        { id: "m2", label: "Fuel filter - condition" },
-        { id: "m3", label: "Engine belts - all belts condition & tension" },
-        { id: "m4", label: "Radiator - fins clean, no debris" },
-        { id: "m5", label: "Exhaust system - leaks, condition, mounting" },
-        { id: "m6", label: "Engine mounts - condition, tightness" },
-        { id: "m7", label: "Transmission - operation, shifting, noises" },
-        { id: "m8", label: "Drive axle - leaks, noises, operation" },
-        { id: "m9", label: "Axle oscillation/pivot - operation, wear" }
-      ]
+function getEquipmentNickname(eq) {
+    if (eq.equipment_id === 'BIG-RED-01') return 'BIG RED';
+    if (eq.equipment_id === 'BLUE-GENIE-01') return 'BLUE GENIE';
+    if (eq.equipment_id === 'GREEN-JLG-01') return 'GREEN JLG';
+    if (eq.equipment_id === 'ORANGE-GENIE-01') return 'ORANGE GENIE';
+    if (eq.equipment_id === 'EMI-TC-01') return 'EMI Tube Cutter';
+    if (eq.equipment_id === 'MILLER-350P-01') return 'Miller 350P';
+    return eq.equipment_id;
+}
+
+// =============================================================================
+// CHECKLIST DATA - TELEHANDLERS (shared by all 4 telehandlers)
+// =============================================================================
+const TELEHANDLER_CHECKLISTS = {
+    daily: {
+        title: 'Daily Telehandler Inspection',
+        warning: 'DO NOT OPERATE EQUIPMENT WITH SAFETY DEFECTS — REPORT IMMEDIATELY',
+        sections: [
+            { name: 'PRE-START VISUAL INSPECTION', items: [
+                'Tires — condition, inflation, lug nuts tight',
+                'Forks/carriage — cracks, wear, pins secured',
+                'Boom sections — no damage, dents, cracks',
+                'Boom wear pads — condition',
+                'Hydraulic cylinders — no leaks or damage',
+                'Hoses & fittings — secure, no leaks, no rubbing',
+                'Frame & chassis — cracks, damage, welds',
+                'Stabilizers/outriggers — pads, cylinders, pins',
+                'Counterweight — secure',
+                'Fluid levels (engine oil, coolant, hydraulic, fuel)',
+                'No visible leaks under unit',
+                'Fire extinguisher — present & charged',
+            ]},
+            { name: 'OPERATOR COMPARTMENT', items: [
+                'Cab/ROPS — structural integrity, secure',
+                'Seat & seatbelt — condition, operation',
+                'All mirrors — present, clean, adjusted',
+                'Gauges & warning lights functional',
+                'Joystick controls — boots intact, moves freely',
+                'Load moment indicator (LMI) — functional',
+                'Floor — clean, no loose items',
+                'Load chart — present, legible',
+            ]},
+            { name: 'OPERATIONAL CHECKS (ENGINE RUNNING)', items: [
+                'Engine starts properly — no unusual noise',
+                'Steering — smooth, full range (all modes)',
+                'Service brake — firm pedal, holds',
+                'Parking brake — holds on grade',
+                'Transmission — forward/reverse/neutral',
+                'Boom extend — smooth, full extension',
+                'Boom retract — smooth, full retraction',
+                'Boom raise — smooth operation',
+                'Boom lower — smooth, controlled',
+                'Fork tilt — forward and back smooth',
+                'Auxiliary hydraulics — smooth (if equipped)',
+                'Stabilizers — deploy/retract properly',
+                'Frame level indicator — functional',
+                'Horn — functional',
+                'Backup alarm — functional',
+                'Lights — head, work, warning, turn signals',
+                'Strobe/beacon — functional',
+            ]},
+        ]
     },
-    {
-      name: "HYDRAULIC SYSTEM - COMPREHENSIVE",
-      items: [
-        { id: "m10", label: "Hydraulic tank - level, breather cap condition" },
-        { id: "m11", label: "Hydraulic filter - condition/replacement due" },
-        { id: "m12", label: "Hydraulic oil - sample for analysis (if due)" },
-        { id: "m13", label: "Boom lift cylinder - drift test (hold load 10 min)" },
-        { id: "m14", label: "Boom extend cylinder - drift test" },
-        { id: "m15", label: "Control valve - operation, leaks" },
-        { id: "m16", label: "Hydraulic pump - noise, pressure, operation" },
-        { id: "m17", label: "All hydraulic hose routing - chafing, support" }
-      ]
+    weekly: {
+        title: 'Weekly Telehandler Inspection',
+        sections: [
+            { name: 'LUBRICATION', items: [
+                'Grease boom pivot pins',
+                'Grease boom extend/retract slides',
+                'Grease carriage and fork pins',
+                'Grease steering linkage fittings',
+                'Grease stabilizer pivot points',
+                'Grease axle pivot points',
+                'Lubricate boom wear pads',
+            ]},
+            { name: 'FLUID SYSTEMS — DETAILED CHECK', items: [
+                'Engine oil — level and condition',
+                'Hydraulic fluid — level and condition',
+                'Coolant — level and condition',
+                'Transmission fluid — level and condition',
+                'Axle/differential oil — level',
+                'Brake fluid — level (if applicable)',
+                'Fuel/water separator — drain water',
+            ]},
+            { name: 'BATTERY & ELECTRICAL', items: [
+                'Battery terminals — clean, tight, no corrosion',
+                'Battery hold-down — secure',
+                'Cables — no fraying, secure connections',
+                'Alternator belt — tension and condition',
+                'All electrical connections — secure, no damage',
+            ]},
+            { name: 'TIRES & WHEELS — DETAILED', items: [
+                'Tire tread depth — adequate',
+                'Check for cuts, chunking, sidewall damage',
+                'Wheel studs/lugs — torqued to spec',
+                'Rim condition — no cracks or damage',
+            ]},
+            { name: 'BOOM SYSTEM — DETAILED', items: [
+                'Boom sections — wear, damage, alignment',
+                'Boom wear pads — thickness, condition',
+                'Extend/retract cylinder — leaks, rod condition',
+                'Lift cylinder — leaks, rod condition',
+                'Boom pivot pins — wear, retention',
+                'All boom hydraulic fittings — tightness',
+            ]},
+            { name: 'SAFETY SYSTEMS', items: [
+                'Load moment indicator (LMI) — calibration check',
+                'Load chart — legible, matches machine',
+                'All safety decals — present and legible',
+                'Seat belt — webbing condition, latch function',
+                'ROPS/FOPS — structural integrity',
+            ]},
+        ]
     },
-    {
-      name: "STEERING SYSTEM",
-      items: [
-        { id: "m18", label: "Steering cylinder(s) - leaks, operation" },
-        { id: "m19", label: "Steering linkage - wear, play" },
-        { id: "m20", label: "Steering mode selector - all modes function" },
-        { id: "m21", label: "Power steering pump - noise, leaks" },
-        { id: "m22", label: "Steering hoses - condition, routing" }
-      ]
-    },
-    {
-      name: "BRAKE SYSTEM",
-      items: [
-        { id: "m23", label: "Service brake - performance, pedal feel" },
-        { id: "m24", label: "Parking brake - holds on grade (loaded)" },
-        { id: "m25", label: "Brake fluid level (if applicable)" },
-        { id: "m26", label: "Brake lines/hoses - condition, leaks" },
-        { id: "m27", label: "Brake wear indicators (if equipped)" }
-      ]
-    },
-    {
-      name: "STRUCTURAL",
-      items: [
-        { id: "m28", label: "Frame - cracks, damage, corrosion" },
-        { id: "m29", label: "Boom structure - detailed weld inspection" },
-        { id: "m30", label: "Counterweight mounting - bolts torqued" },
-        { id: "m31", label: "Outrigger/stabilizer structure & welds" },
-        { id: "m32", label: "Steps and handrails - secure, condition" },
-        { id: "m33", label: "All guards and covers - present, secure" }
-      ]
-    },
-    {
-      name: "ELECTRICAL",
-      items: [
-        { id: "m34", label: "Alternator output - voltage check" },
-        { id: "m35", label: "Starter - operation, connections" },
-        { id: "m36", label: "Ground connections - clean, tight" },
-        { id: "m37", label: "Control module - connections, error codes" },
-        { id: "m38", label: "Sensor calibration check (LMI, angle, etc.)" }
-      ]
+    monthly: {
+        title: 'Monthly Telehandler Inspection',
+        sections: [
+            { name: 'ENGINE & DRIVETRAIN', items: [
+                'Air filter — condition (clean or replace)',
+                'Fuel filter — condition',
+                'Engine belts — all belts condition & tension',
+                'Radiator — fins clean, no debris',
+                'Exhaust system — leaks, condition, mounting',
+                'Engine mounts — condition, tightness',
+                'Transmission — operation, shifting, noises',
+                'Drive axle — leaks, noises, operation',
+                'Axle oscillation/pivot — operation, wear',
+            ]},
+            { name: 'HYDRAULIC SYSTEM — COMPREHENSIVE', items: [
+                'Hydraulic tank — level, breather cap condition',
+                'Hydraulic filter — condition/replacement due',
+                'Hydraulic oil — sample for analysis (if due)',
+                'Boom lift cylinder — drift test (hold load 10 min)',
+                'Boom extend cylinder — drift test',
+                'Control valve — operation, leaks',
+                'Hydraulic pump — noise, pressure, operation',
+                'All hydraulic hose routing — chafing, support',
+            ]},
+            { name: 'STEERING SYSTEM', items: [
+                'Steering cylinder(s) — leaks, operation',
+                'Steering linkage — wear, play',
+                'Steering mode selector — all modes function',
+                'Power steering fluid — level (if separate)',
+            ]},
+            { name: 'BRAKE SYSTEM — COMPREHENSIVE', items: [
+                'Service brake — adjustment, effectiveness',
+                'Parking brake — adjustment, holding',
+                'Brake lines/hoses — leaks, condition',
+                'Brake pads/shoes — wear measurement',
+            ]},
+            { name: 'BOOM & STRUCTURAL INSPECTION', items: [
+                'Frame — cracks, damage, corrosion, welds',
+                'Boom base section — cracks, welds, pins',
+                'Boom mid section(s) — cracks, wear, alignment',
+                'Boom nose section — cracks, carriage mount',
+                'All boom pins — wear, retention devices',
+                'Carriage — cracks, wear, roller condition',
+                'Forks — crack inspection, wear, thickness',
+                'Fork thickness — measure heel (record below)',
+            ]},
+            { name: 'STABILIZER SYSTEM', items: [
+                'Stabilizer beams — cracks, damage, pins',
+                'Stabilizer cylinders — leaks, rod condition',
+                'Stabilizer pads — condition, attachment',
+                'Stabilizer controls — operation',
+            ]},
+            { name: 'ELECTRICAL & SAFETY SYSTEMS', items: [
+                'All lights — operation and aim',
+                'Wiring harness — routing, chafing, connections',
+                'Load moment indicator — full function test',
+                'Overload warning/cutout — test function',
+                'Boom angle/length indicators — accuracy',
+                'ROPS/FOPS certification current',
+            ]},
+        ]
     }
-  ]
 };
 
-function getChecklist(type) {
-  if (type === 'daily') return dailyChecklist;
-  if (type === 'weekly') return weeklyChecklist;
-  if (type === 'monthly') return monthlyChecklist;
-  return dailyChecklist;
+// =============================================================================
+// CHECKLIST DATA - EMI TPC2464 TUBE CUTTER
+// =============================================================================
+const EMI_TUBE_CUTTER_CHECKLISTS = {
+    daily: {
+        title: 'Daily Tube/Pipe Cutter Inspection',
+        subtitle: 'Hypertherm 80A Plasma | 5" Max Capacity | Single Chuck Through-Feed',
+        warning: 'KEEP HANDS CLEAR OF ROTATING TUBE/CHUCK — VERIFY MATERIAL SECURE BEFORE CUTTING',
+        sections: [
+            { name: 'HYPERTHERM 80A PLASMA SYSTEM', items: [
+                'Power source — on, no fault codes/alarms',
+                'Torch body — no damage, secure mount',
+                'Torch consumables — check condition',
+                'Torch lead — no damage, kinks, or wear',
+                'Air supply — pressure adequate, water drained',
+                'Air filter/regulator — condition, moisture',
+                'Ground clamp — secure connection, clean',
+                'Work lead — no damage, secure',
+            ]},
+            { name: 'CHUCK SYSTEM — SINGLE CHUCK', items: [
+                'Chuck jaws — condition, wear, clean',
+                'Chuck operation — opens/closes smoothly',
+                'Chuck clamping force — adequate',
+                'Chuck centering — verified',
+                'Chuck mounting — secure, no play',
+                'Chuck key/wrench — available',
+            ]},
+            { name: 'THROUGH-FEED SYSTEM', items: [
+                'Feed rollers — condition, alignment',
+                'Feed drive — smooth operation',
+                'Tube/pipe guides — adjusted, secure',
+                'Infeed area — clear, no obstructions',
+                'Outfeed area — clear, supports in place',
+                'Length measurement — functional',
+            ]},
+            { name: 'TORCH MOTION SYSTEM', items: [
+                'Rotary axis (C-axis) — smooth rotation',
+                'Torch height (Z-axis) — smooth travel',
+                'Torch positioning — accurate',
+                'Home/reference position — verified',
+                'Torch height control — responsive',
+                'Torch collision protection — functional',
+            ]},
+            { name: 'SAFETY & CONTROLS', items: [
+                'E-stops — all functional (test each)',
+                'Safety guards — in place, secure',
+                'Control panel — no faults/alarms',
+                'HMI/interface — responsive, no errors',
+                'Spark/slag containment — in place',
+                'Fire extinguisher — present, charged',
+            ]},
+        ]
+    },
+    weekly: {
+        title: 'Weekly Tube/Pipe Cutter Inspection',
+        subtitle: 'Hypertherm 80A Plasma | 5" Max Capacity | Single Chuck Through-Feed',
+        sections: [
+            { name: 'HYPERTHERM PLASMA — DETAILED', items: [
+                'Power source — clean vents, check error log',
+                'Power source fans — running, clean',
+                'Torch body — inspect O-rings, seals',
+                'Torch lead — full length inspection',
+                'Air supply — regulator accuracy, filter condition',
+                'Air compressor drain — verify drained',
+                'Ground clamp — clean contact surfaces',
+                'Work lead connections — tight, clean',
+            ]},
+            { name: 'CHUCK SYSTEM — DETAILED', items: [
+                'Chuck jaws — measure wear, clean thoroughly',
+                'Chuck scroll/mechanism — lubricate',
+                'Chuck body — clean, inspect for damage',
+                'Chuck bearings — listen for noise, check play',
+                'Chuck drive motor — temperature, noise',
+                'Chuck encoder (if equipped) — verify function',
+            ]},
+            { name: 'THROUGH-FEED SYSTEM — DETAILED', items: [
+                'Feed rollers — wear measurement, clean',
+                'Feed roller bearings — noise, play',
+                'Feed drive motor — temperature, noise',
+                'Feed drive belt/chain — tension, condition',
+                'Tube guides — adjustment, wear',
+                'Guide rollers — condition, free movement',
+                'Length encoder/sensor — calibration check',
+            ]},
+            { name: 'TORCH MOTION — DETAILED', items: [
+                'Rotary axis bearings — noise, play',
+                'Rotary axis drive — belt/gear condition',
+                'Rotary axis motor — temperature, noise',
+                'Z-axis linear guide — clean, lubricate',
+                'Z-axis ball screw/lead screw — lubricate',
+                'Z-axis motor — temperature, noise',
+                'All limit switches — function test',
+                'Torch mount/bracket — tightness',
+            ]},
+            { name: 'ELECTRICAL & SAFETY', items: [
+                'Electrical enclosure — clean, cool, sealed',
+                'All E-stops — comprehensive test',
+                'Safety guards/covers — secure, undamaged',
+                'Warning lights/indicators — all functional',
+                'Interlock switches (if equipped) — test',
+                'Control cables — routing, condition',
+            ]},
+        ]
+    },
+    monthly: {
+        title: 'Monthly Tube/Pipe Cutter Inspection',
+        subtitle: 'Hypertherm 80A Plasma | 5" Max Capacity | Single Chuck Through-Feed',
+        sections: [
+            { name: 'HYPERTHERM PLASMA — COMPREHENSIVE', items: [
+                'Power source — internal inspection (if due)',
+                'Power source — firmware check',
+                'Torch body — replace O-rings, seals',
+                'Torch lead connections — clean, re-seat',
+                'Air system — complete leak test',
+                'Air filter element — replace',
+                'Pilot arc test — verify function',
+                'Cut quality test — sample cuts',
+            ]},
+            { name: 'CHUCK SYSTEM — COMPREHENSIVE', items: [
+                'Chuck jaws — replace if worn beyond spec',
+                'Chuck scroll — full inspection, lubricate',
+                'Chuck bearings — full inspection, replace if needed',
+                'Chuck runout — measure and record',
+                'Chuck concentricity — verify to spec',
+                'Chuck drive belt (if equipped) — replace if worn',
+                'Chuck motor — amperage test',
+            ]},
+            { name: 'THROUGH-FEED — COMPREHENSIVE', items: [
+                'All feed rollers — replace if worn',
+                'All roller bearings — replace if needed',
+                'Feed drive — complete inspection',
+                'Feed accuracy — test and calibrate',
+                'Length measurement — calibrate',
+                'All guides — adjust/replace as needed',
+                'Feed speed calibration — verify',
+            ]},
+            { name: 'TORCH MOTION — COMPREHENSIVE', items: [
+                'Rotary axis — full calibration',
+                'Rotary axis backlash — measure, adjust',
+                'Z-axis calibration — verify',
+                'Z-axis backlash — measure, adjust',
+                'All axis bearings — full inspection',
+                'All drive components — replace if worn',
+                'Positioning accuracy test — run program',
+                'Torch height calibration — verify',
+            ]},
+            { name: 'MACHINE ALIGNMENT & ACCURACY', items: [
+                'Chuck-to-torch alignment — verify perpendicular',
+                'Feed system alignment — verify straight',
+                'Cut piece accuracy — measure samples',
+                'Hole/feature accuracy — test cuts',
+                'Repeatability test — multiple cuts',
+            ]},
+            { name: 'ELECTRICAL SYSTEM', items: [
+                'Main disconnect — inspect contacts',
+                'All terminal connections — re-torque',
+                'Control board — visual inspection',
+                'PLC battery (if equipped) — check/replace',
+                'Program backup — verify current',
+                'All motor connections — inspect, tighten',
+            ]},
+            { name: 'SAFETY SYSTEMS', items: [
+                'All E-stop circuits — comprehensive test',
+                'All guards — condition, mounting',
+                'All interlocks — function test',
+                'Safety signage — all present, legible',
+                'Fire extinguisher — inspection current',
+            ]},
+        ]
+    }
+};
+
+// =============================================================================
+// CHECKLIST DATA - MILLER MILLERMATIC 350P
+// =============================================================================
+const MILLER_WELDER_CHECKLISTS = {
+    daily: {
+        title: 'Daily MIG Welder Inspection',
+        subtitle: 'MIG / Pulsed MIG Welder | Integrated Wire Feeder | Air-Cooled Torch',
+        warning: 'ARC FLASH/UV HAZARD — PROPER PPE REQUIRED — ENSURE ADEQUATE VENTILATION',
+        sections: [
+            { name: 'POWER SOURCE', items: [
+                'Power switch — operational',
+                'Display/controls — functional, no error codes',
+                'Power cord — no damage, secure connection',
+                'Cooling fan(s) — running, vents clear',
+                'Case/enclosure — no damage, panels secure',
+                'Ground stud — clean, tight',
+            ]},
+            { name: 'SHIELDING GAS SUPPLY', items: [
+                'Gas cylinder — secured/chained',
+                'Cylinder valve — operational',
+                'Cylinder pressure gauge — adequate supply',
+                'Regulator/flowmeter — operational, set correctly',
+                'Flow rate gauge — reading properly',
+                'Gas hose — no leaks, cracks, damage',
+                'Gas hose connections — tight, no leaks',
+            ]},
+            { name: 'WIRE FEEDER (INTEGRATED)', items: [
+                'Wire spool — adequate supply',
+                'Wire spool — properly seated on hub',
+                'Wire spool tension — properly adjusted',
+                'Drive rolls — correct size for wire',
+                'Drive roll tension — properly adjusted',
+                'Wire guide tubes — aligned, not worn',
+                'Feeder door/cover — closes properly',
+            ]},
+            { name: 'MIG GUN & CABLE (AIR-COOLED)', items: [
+                'Gun cable — no cuts, kinks, burns, wear',
+                'Gun handle — no damage, trigger functional',
+                'Gun neck/gooseneck — not bent, secure',
+                'Contact tip — correct size, not worn',
+                'Gas nozzle — clean, no spatter buildup',
+                'Gas diffuser — clean, holes clear',
+                'Liner — feeding smoothly, no birds nests',
+            ]},
+            { name: 'WORK LEAD & GROUND', items: [
+                'Work lead cable — no damage, adequate length',
+                'Work clamp — jaws clean, spring tension good',
+                'Work clamp connection — secure to cable',
+                'Connection to machine — tight',
+            ]},
+            { name: 'GENERAL SAFETY', items: [
+                'Welder cart (if used) — stable, wheels locked',
+                'Area around machine — clear, no trip hazards',
+                'Fire extinguisher — nearby, charged',
+                'Welding curtains/screens — in place',
+            ]},
+        ]
+    },
+    weekly: {
+        title: 'Weekly MIG Welder Inspection',
+        subtitle: 'MIG / Pulsed MIG Welder | Integrated Wire Feeder | Air-Cooled Torch',
+        sections: [
+            { name: 'POWER SOURCE — DETAILED', items: [
+                'Exterior — clean, blow out dust/debris',
+                'Cooling vents — clear, unobstructed',
+                'Cooling fan(s) — clean, running properly',
+                'Power cord — full length inspection',
+                'Power plug — prongs tight, no damage',
+                'Front panel — all controls functional',
+                'Display — all segments working',
+                'Ground stud — clean, tight, no corrosion',
+                'Case — check for dents, damage, loose panels',
+            ]},
+            { name: 'GAS SUPPLY SYSTEM — DETAILED', items: [
+                'Cylinder — secured properly, not damaged',
+                'Cylinder valve — opens/closes smoothly',
+                'Regulator — no damage, gauge reads accurately',
+                'Regulator connection — tight, no leaks',
+                'Flowmeter — ball moves freely, accurate',
+                'Gas hose — full length inspection',
+                'Gas hose fittings — check for leaks (soap test)',
+                'Gas solenoid (in machine) — listen for click',
+            ]},
+            { name: 'WIRE FEEDER — DETAILED', items: [
+                'Wire feeder interior — clean, blow out debris',
+                'Drive rolls — inspect wear grooves',
+                'Drive roll pressure — verify adjustment',
+                'Inlet guide — alignment, wear',
+                'Outlet guide — alignment, wear',
+                'Wire spool hub — spins freely, brake works',
+                'Feed motor — runs smoothly, no noise',
+                'Wire path — clear, no debris or kinks',
+            ]},
+            { name: 'MIG GUN — DETAILED', items: [
+                'Gun cable — full inspection, flex test',
+                'Cable connections (both ends) — tight',
+                'Trigger — smooth operation, positive click',
+                'Trigger switch — electrical test',
+                'Gun neck — secure, not bent',
+                'Liner — check for wear, kinks (replace if needed)',
+                'Contact tip holder — threads clean, not worn',
+                'Gas diffuser — holes clear, O-ring good',
+                'Nozzle insulator — intact, not cracked',
+            ]},
+            { name: 'WORK LEAD — DETAILED', items: [
+                'Work lead cable — full inspection',
+                'Work lead connections — tight both ends',
+                'Work clamp — jaws clean, full grip',
+                'Work clamp spring — adequate tension',
+                'Work clamp cable connection — secure',
+            ]},
+            { name: 'FUNCTIONAL TEST', items: [
+                'Wire feed — smooth at low speed',
+                'Wire feed — smooth at high speed',
+                'Gas flow — verify at gun (pre-flow)',
+                'Arc start — test on scrap',
+                'Voltage control — responds correctly',
+                'Wire speed control — responds correctly',
+            ]},
+        ]
+    },
+    monthly: {
+        title: 'Monthly MIG Welder Inspection',
+        subtitle: 'MIG / Pulsed MIG Welder | Integrated Wire Feeder | Air-Cooled Torch',
+        sections: [
+            { name: 'POWER SOURCE — COMPREHENSIVE', items: [
+                'Interior — blow out with compressed air',
+                'PC boards — visual inspection, no burns/damage',
+                'Internal connections — check for loose wires',
+                'Capacitors — visual check for bulging/leaks',
+                'Transformer/inductors — no discoloration/smell',
+                'Rectifier/diodes — visual inspection',
+                'Fan motor(s) — clean, spin freely',
+                'Thermal protection — verify resets properly',
+                'Power cord strain relief — secure',
+            ]},
+            { name: 'GAS SYSTEM — COMPREHENSIVE', items: [
+                'Regulator — calibration check if due',
+                'Regulator diaphragm — no leaks (listen/soap test)',
+                'All gas fittings — comprehensive leak test',
+                'Gas solenoid valve — operation, no internal leaks',
+                'Gas hose — replace if cracked or damaged',
+                'Flow accuracy — verify with external meter',
+            ]},
+            { name: 'WIRE FEEDER — COMPREHENSIVE', items: [
+                'Drive rolls — replace if worn',
+                'Drive motor — amperage check (if meter avail)',
+                'Drive motor brushes (if applicable) — check wear',
+                'Gear train — inspect, lubricate if needed',
+                'Pressure arm/spring — proper tension',
+                'Wire guides — replace if worn',
+                'Wire speed calibration — verify accuracy',
+                'Spool hub brake — adjustment, function',
+            ]},
+            { name: 'MIG GUN — COMPREHENSIVE', items: [
+                'Liner — replace (or verify recent replacement)',
+                'Liner length — trimmed correctly',
+                'Power cable — continuity test',
+                'Trigger leads — continuity test',
+                'Handle/grip — secure, no damage',
+                'Neck/gooseneck — threads clean, seals good',
+                'All O-rings — replace as needed',
+                'Gun connection (machine end) — clean, tight',
+            ]},
+            { name: 'WORK CIRCUIT — COMPREHENSIVE', items: [
+                'Work lead — continuity test',
+                'Work lead terminals — clean, tight',
+                'Work clamp — rebuild/replace if worn',
+                'Ground stud — clean, re-torque',
+            ]},
+            { name: 'ELECTRICAL SAFETY', items: [
+                'Power cord — insulation integrity',
+                'Ground continuity — test',
+                'Case bonding — verify',
+                'All covers/panels — secure, grounded',
+            ]},
+            { name: 'PERFORMANCE VERIFICATION', items: [
+                'Output voltage — verify accuracy (meter test)',
+                'Wire feed speed — verify accuracy',
+                'Weld test — proper penetration, appearance',
+                'Pulse settings (if used) — verify function',
+                'All programs/presets — verify saved',
+            ]},
+        ]
+    }
+};
+
+// Map equipment types to their checklist data
+function getChecklistForEquipment(equipmentType) {
+    if (equipmentType === 'telehandler_33k' || equipmentType === 'telehandler_12k') return TELEHANDLER_CHECKLISTS;
+    if (equipmentType === 'emi_tube_cutter') return EMI_TUBE_CUTTER_CHECKLISTS;
+    if (equipmentType === 'miller_welder') return MILLER_WELDER_CHECKLISTS;
+    return TELEHANDLER_CHECKLISTS;
 }
 
-// ===== NAVIGATION =====
-function showPage(page) {
-  document.querySelectorAll('[id^="page-"]').forEach(el => el.style.display = 'none');
-  document.getElementById('page-' + page).style.display = '';
-  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-  document.querySelector(`.nav-tab[data-page="${page}"]`).classList.add('active');
+// =============================================================================
+// MAIN APP COMPONENT
+// =============================================================================
+function App() {
+    const [page, setPage] = useState('dashboard');
+    const [equipment, setEquipment] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [notification, setNotification] = useState(null);
 
-  if (page === 'dashboard') loadDashboard();
-  if (page === 'equipment') loadEquipment();
-  if (page === 'inspections') loadInspections();
-  if (page === 'tickets') loadTickets();
+    const notify = (msg, type = 'success') => {
+        setNotification({ msg, type });
+        setTimeout(() => setNotification(null), 3000);
+    };
+
+    const loadEquipment = async () => {
+        try {
+            const data = await API.get('/equipment');
+            setEquipment(data);
+            return data;
+        } catch (e) {
+            console.error('Failed to load equipment:', e);
+            return [];
+        }
+    };
+
+    const seedEquipment = async () => {
+        try {
+            const existing = await loadEquipment();
+            if (existing.length === 0) {
+                for (const eq of EQUIPMENT_SEED) {
+                    try { await API.post('/equipment', eq); } catch (e) { console.log('Seed skip:', eq.equipment_id); }
+                }
+                await loadEquipment();
+                notify('Equipment seeded successfully');
+            }
+        } catch (e) { console.error('Seed failed:', e); }
+        setLoading(false);
+    };
+
+    useEffect(() => { seedEquipment(); }, []);
+
+    if (loading) return (
+        <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+                <div className="w-12 h-12 border-4 border-sse-orange border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">Loading SSE Inspection System...</p>
+            </div>
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen">
+            {/* Top Nav */}
+            <nav className="bg-sse-navy text-white shadow-lg">
+                <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-sse-orange rounded-lg flex items-center justify-center font-bold text-lg">SSE</div>
+                        <div>
+                            <h1 className="text-lg font-bold leading-tight">Equipment Inspections</h1>
+                            <p className="text-xs text-gray-400">Southern Services & Equipment</p>
+                        </div>
+                    </div>
+                </div>
+                <div className="max-w-7xl mx-auto px-4 flex gap-1 pb-1">
+                    {[
+                        { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+                        { id: 'new-inspection', label: 'New Inspection', icon: '📋' },
+                        { id: 'history', label: 'History', icon: '📜' },
+                        { id: 'work-tickets', label: 'Work Tickets', icon: '🔧' },
+                        { id: 'equipment', label: 'Equipment', icon: '🏗️' },
+                    ].map(tab => (
+                        <button key={tab.id} onClick={() => setPage(tab.id)}
+                            className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${
+                                page === tab.id ? 'bg-white text-sse-navy' : 'text-gray-300 hover:text-white hover:bg-white/10'
+                            }`}>
+                            <span className="mr-1">{tab.icon}</span> {tab.label}
+                        </button>
+                    ))}
+                </div>
+            </nav>
+
+            {/* Notification */}
+            {notification && (
+                <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-white font-medium ${
+                    notification.type === 'success' ? 'bg-green-600' : notification.type === 'error' ? 'bg-red-600' : 'bg-blue-600'
+                }`}>{notification.msg}</div>
+            )}
+
+            {/* Page Content */}
+            <div className="max-w-7xl mx-auto px-4 py-6 fade-in">
+                {page === 'dashboard' && <DashboardPage equipment={equipment} />}
+                {page === 'new-inspection' && <NewInspectionPage equipment={equipment} notify={notify} setPage={setPage} />}
+                {page === 'history' && <HistoryPage equipment={equipment} />}
+                {page === 'work-tickets' && <WorkTicketsPage notify={notify} />}
+                {page === 'equipment' && <EquipmentPage equipment={equipment} reload={loadEquipment} notify={notify} />}
+            </div>
+        </div>
+    );
 }
 
-// ===== TOAST =====
-function showToast(msg, type='success') {
-  const c = document.getElementById('toastContainer');
-  const icon = type === 'success' ? '✓' : '✕';
-  c.innerHTML = `<div class="toast ${type}"><span>${icon}</span> ${msg}</div>`;
-  setTimeout(() => c.innerHTML = '', 3000);
+// =============================================================================
+// DASHBOARD PAGE
+// =============================================================================
+function DashboardPage({ equipment }) {
+    const [stats, setStats] = useState(null);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        API.get('/dashboard').then(setStats).catch(console.error).finally(() => setLoading(false));
+    }, []);
+
+    if (loading) return <LoadingSpinner />;
+
+    return (
+        <div className="space-y-6">
+            <h2 className="text-2xl font-bold text-sse-navy">Dashboard</h2>
+
+            {/* Stat Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <StatCard label="Total Equipment" value={equipment.length} icon="🏗️" color="blue" />
+                <StatCard label="Open Work Tickets" value={stats?.open_work_tickets || 0} icon="🔧" color={stats?.open_work_tickets > 0 ? 'yellow' : 'green'} />
+                <StatCard label="High Priority" value={stats?.high_priority_tickets || 0} icon="⚠️" color={stats?.high_priority_tickets > 0 ? 'red' : 'green'} />
+                <StatCard label="Field / Shop" value={`${stats?.equipment_by_category?.field || 0} / ${stats?.equipment_by_category?.shop || 0}`} icon="📦" color="purple" />
+            </div>
+
+            {/* Equipment Status */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h3 className="text-lg font-bold text-sse-navy mb-4">Equipment Status</h3>
+                <div className="space-y-2">
+                    {(stats?.equipment_status || []).map((eq, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-3">
+                                <span className="text-xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
+                                <div>
+                                    <p className="font-medium">{getEquipmentNickname(eq)} <span className="text-gray-400 text-sm">({eq.equipment_id})</span></p>
+                                    <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                                </div>
+                            </div>
+                            <div className="text-right">
+                                {eq.last_inspection ? (
+                                    <span className="text-sm text-green-600 font-medium">Last: {eq.last_inspection}</span>
+                                ) : (
+                                    <span className="text-sm text-red-500 font-medium">No inspections yet</span>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                    {(!stats?.equipment_status || stats.equipment_status.length === 0) && (
+                        <p className="text-gray-500 text-center py-4">No equipment found. Add equipment first.</p>
+                    )}
+                </div>
+            </div>
+
+            {/* Recent Inspections */}
+            <div className="bg-white rounded-xl shadow-sm border p-6">
+                <h3 className="text-lg font-bold text-sse-navy mb-4">Recent Inspections</h3>
+                <div className="space-y-2">
+                    {(stats?.recent_inspections || []).map((insp, i) => (
+                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                            <div>
+                                <p className="font-medium">{insp.equipment_code} — <span className="capitalize">{insp.inspection_type}</span></p>
+                                <p className="text-sm text-gray-500">By {insp.inspector_name} on {insp.inspection_date}</p>
+                            </div>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
+                                insp.overall_status === 'safe' ? 'bg-green-100 text-green-700' :
+                                insp.overall_status === 'needs_repair' ? 'bg-yellow-100 text-yellow-700' :
+                                'bg-red-100 text-red-700'
+                            }`}>{insp.overall_status === 'safe' ? 'SAFE' : insp.overall_status === 'needs_repair' ? 'NEEDS REPAIR' : 'OUT OF SERVICE'}</span>
+                        </div>
+                    ))}
+                    {(!stats?.recent_inspections || stats.recent_inspections.length === 0) && (
+                        <p className="text-gray-500 text-center py-4">No inspections yet. Start a new inspection!</p>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
 }
 
-// ===== API HELPERS =====
-async function apiGet(path) {
-  const r = await fetch(API + path);
-  if (!r.ok) throw new Error('API error');
-  return r.json();
+function StatCard({ label, value, icon, color }) {
+    const colors = {
+        blue: 'bg-blue-50 border-blue-200', green: 'bg-green-50 border-green-200',
+        yellow: 'bg-yellow-50 border-yellow-200', red: 'bg-red-50 border-red-200',
+        purple: 'bg-purple-50 border-purple-200',
+    };
+    return (
+        <div className={`rounded-xl border-2 p-4 ${colors[color] || colors.blue}`}>
+            <div className="flex items-center justify-between mb-2">
+                <span className="text-2xl">{icon}</span>
+            </div>
+            <p className="text-2xl font-bold text-gray-800">{value}</p>
+            <p className="text-sm text-gray-600">{label}</p>
+        </div>
+    );
 }
 
-async function apiPost(path, data) {
-  const r = await fetch(API + path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'API error'); }
-  return r.json();
-}
+// =============================================================================
+// NEW INSPECTION PAGE
+// =============================================================================
+function NewInspectionPage({ equipment, notify, setPage }) {
+    const [step, setStep] = useState(1); // 1=select equipment, 2=select type, 3=fill form
+    const [selectedEquip, setSelectedEquip] = useState(null);
+    const [inspType, setInspType] = useState(null);
+    const [formData, setFormData] = useState({});
+    const [inspectorName, setInspectorName] = useState('');
+    const [hourMeter, setHourMeter] = useState('');
+    const [generalComments, setGeneralComments] = useState('');
+    const [submitting, setSubmitting] = useState(false);
 
-async function apiPut(path, data) {
-  const r = await fetch(API + path, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
-  });
-  if (!r.ok) throw new Error('API error');
-  return r.json();
-}
+    // Initialize form data when checklist is selected
+    useEffect(() => {
+        if (selectedEquip && inspType) {
+            const checklists = getChecklistForEquipment(selectedEquip.equipment_type);
+            const checklist = checklists[inspType];
+            const initial = {};
+            checklist.sections.forEach(section => {
+                section.items.forEach(item => {
+                    const key = `${section.name}|||${item}`;
+                    initial[key] = { status: '', comments: '' };
+                });
+            });
+            setFormData(initial);
+        }
+    }, [selectedEquip, inspType]);
 
-async function apiDelete(path) {
-  const r = await fetch(API + path, { method: 'DELETE' });
-  if (!r.ok) throw new Error('API error');
-  return r.json();
-}
+    const setItemStatus = (key, status) => {
+        setFormData(prev => ({ ...prev, [key]: { ...prev[key], status } }));
+    };
 
-// ===== DASHBOARD =====
-async function loadDashboard() {
-  try {
-    const data = await apiGet('/dashboard');
-    const grid = document.getElementById('statsGrid');
-    const totalEquip = Object.values(data.equipment_by_category || {}).reduce((a,b) => a+b, 0);
+    const setItemComment = (key, comments) => {
+        setFormData(prev => ({ ...prev, [key]: { ...prev[key], comments } }));
+    };
 
-    grid.innerHTML = `
-      <div class="stat-card"><div class="stat-value">${totalEquip}</div><div class="stat-label">Total Equipment</div></div>
-      <div class="stat-card"><div class="stat-value">${data.equipment_by_category?.field || 0}</div><div class="stat-label">Field Equipment</div></div>
-      <div class="stat-card"><div class="stat-value">${data.equipment_by_category?.shop || 0}</div><div class="stat-label">Shop Equipment</div></div>
-      <div class="stat-card ${data.open_work_tickets > 0 ? 'alert' : 'ok'}"><div class="stat-value">${data.open_work_tickets}</div><div class="stat-label">Open Work Tickets</div></div>
-      <div class="stat-card ${data.high_priority_tickets > 0 ? 'alert' : ''}"><div class="stat-value">${data.high_priority_tickets}</div><div class="stat-label">High Priority</div></div>
-    `;
+    const allItemsChecked = () => {
+        return Object.values(formData).every(item => item.status !== '');
+    };
 
-    const ri = document.getElementById('recentInspections');
-    if (!data.recent_inspections || data.recent_inspections.length === 0) {
-      ri.innerHTML = '<div class="empty-state"><p>No inspections yet. Start by adding equipment and running inspections.</p></div>';
-    } else {
-      ri.innerHTML = '<table class="data-table"><thead><tr><th>Date</th><th>Equipment</th><th>Type</th><th>Status</th></tr></thead><tbody>' +
-        data.recent_inspections.map(i => `<tr>
-          <td>${i.inspection_date}</td>
-          <td>${i.equipment_code || ''} <span style="color:var(--gray-500);font-size:12px">${i.equipment_type || ''}</span></td>
-          <td style="text-transform:capitalize">${i.inspection_type}</td>
-          <td><span class="status-tag status-${i.overall_status}">${fmtStatus(i.overall_status)}</span></td>
-        </tr>`).join('') + '</tbody></table>';
+    const handleSubmit = async () => {
+        if (!inspectorName.trim()) { notify('Please enter inspector name', 'error'); return; }
+        if (!allItemsChecked()) { notify('Please check all items before submitting', 'error'); return; }
+
+        setSubmitting(true);
+        try {
+            const items = Object.entries(formData).map(([key, val]) => {
+                const [category, item_name] = key.split('|||');
+                return { category, item_name, status: val.status, comments: val.comments || null };
+            });
+
+            const needsAttn = items.some(i => i.status === 'needs_attention');
+            const overall = needsAttn ? 'needs_repair' : 'safe';
+
+            const payload = {
+                equipment_id: selectedEquip.id,
+                inspection_type: inspType,
+                inspection_date: new Date().toISOString().split('T')[0],
+                inspector_name: inspectorName,
+                hour_meter_reading: hourMeter ? parseInt(hourMeter) : null,
+                overall_status: overall,
+                general_comments: generalComments || null,
+                items
+            };
+
+            const result = await API.post('/inspections', payload);
+            notify(`Inspection submitted! ${result.work_tickets_created > 0 ? `${result.work_tickets_created} work ticket(s) created.` : ''}`);
+            setPage('dashboard');
+        } catch (e) {
+            notify('Failed to submit: ' + e.message, 'error');
+        }
+        setSubmitting(false);
+    };
+
+    // Step 1: Select Equipment
+    if (step === 1) {
+        const fieldEquip = equipment.filter(e => e.category === 'field');
+        const shopEquip = equipment.filter(e => e.category === 'shop');
+
+        return (
+            <div className="space-y-6">
+                <h2 className="text-2xl font-bold text-sse-navy">New Inspection — Select Equipment</h2>
+
+                {fieldEquip.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">🏗️ Field Equipment</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {fieldEquip.map(eq => (
+                                <button key={eq.id} onClick={() => { setSelectedEquip(eq); setStep(2); }}
+                                    className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-4 text-left transition-all hover:shadow-md">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-3xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
+                                        <div>
+                                            <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
+                                            <p className="text-sm text-gray-500">{eq.make} {eq.model} — {eq.capacity}</p>
+                                            <p className="text-xs text-gray-400">{eq.equipment_id}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {shopEquip.length > 0 && (
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">⚙️ Shop Equipment</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {shopEquip.map(eq => (
+                                <button key={eq.id} onClick={() => { setSelectedEquip(eq); setStep(2); }}
+                                    className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-4 text-left transition-all hover:shadow-md">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-3xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
+                                        <div>
+                                            <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
+                                            <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                                            <p className="text-xs text-gray-400">{eq.equipment_id}</p>
+                                        </div>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
     }
 
-    // Update ticket badge
-    const badge = document.getElementById('ticketBadge');
-    if (data.open_work_tickets > 0) {
-      badge.style.display = '';
-      badge.textContent = data.open_work_tickets;
-    } else {
-      badge.style.display = 'none';
+    // Step 2: Select Inspection Type
+    if (step === 2) {
+        const checklists = getChecklistForEquipment(selectedEquip.equipment_type);
+        const types = [
+            { key: 'daily', label: 'Daily Inspection', desc: 'Pre-operation safety checks', color: 'blue', items: checklists.daily.sections.reduce((a, s) => a + s.items.length, 0) },
+            { key: 'weekly', label: 'Weekly Inspection', desc: 'Detailed maintenance checks', color: 'purple', items: checklists.weekly.sections.reduce((a, s) => a + s.items.length, 0) },
+            { key: 'monthly', label: 'Monthly Inspection', desc: 'Comprehensive review', color: 'green', items: checklists.monthly.sections.reduce((a, s) => a + s.items.length, 0) },
+        ];
+
+        return (
+            <div className="space-y-6">
+                <button onClick={() => setStep(1)} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
+                    ← Back to Equipment
+                </button>
+                <h2 className="text-2xl font-bold text-sse-navy">
+                    {getEquipmentNickname(selectedEquip)} — Select Inspection Type
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {types.map(t => (
+                        <button key={t.key} onClick={() => { setInspType(t.key); setStep(3); }}
+                            className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-6 text-left transition-all hover:shadow-md">
+                            <h3 className="text-xl font-bold mb-2">{t.label}</h3>
+                            <p className="text-sm text-gray-500 mb-3">{t.desc}</p>
+                            <p className="text-xs text-gray-400">{t.items} inspection items</p>
+                        </button>
+                    ))}
+                </div>
+            </div>
+        );
     }
-  } catch(e) {
-    console.error('Dashboard error:', e);
-  }
-}
 
-function fmtStatus(s) {
-  return (s || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-}
+    // Step 3: Inspection Form
+    if (step === 3) {
+        const checklists = getChecklistForEquipment(selectedEquip.equipment_type);
+        const checklist = checklists[inspType];
+        const totalItems = checklist.sections.reduce((a, s) => a + s.items.length, 0);
+        const checkedItems = Object.values(formData).filter(i => i.status !== '').length;
+        const progress = totalItems > 0 ? Math.round((checkedItems / totalItems) * 100) : 0;
 
-// ===== EQUIPMENT =====
-async function loadEquipment() {
-  try {
-    allEquipment = await apiGet('/equipment?active_only=false');
-    renderEquipment();
-  } catch(e) { console.error(e); }
-}
+        return (
+            <div className="space-y-6">
+                <button onClick={() => { setStep(2); setInspType(null); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
+                    ← Back to Type Selection
+                </button>
 
-function renderEquipment() {
-  const grid = document.getElementById('equipmentGrid');
-  const filtered = currentFilter === 'all' ? allEquipment : allEquipment.filter(e => e.category === currentFilter);
+                {/* Header */}
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                    <h2 className="text-xl font-bold text-sse-navy">{checklist.title}</h2>
+                    <p className="text-sm text-gray-500">{getEquipmentNickname(selectedEquip)} ({selectedEquip.equipment_id})</p>
+                    {checklist.subtitle && <p className="text-xs text-gray-400 mt-1">{checklist.subtitle}</p>}
+                    {checklist.warning && (
+                        <div className="mt-2 bg-red-50 border border-red-200 rounded-lg p-2 text-red-700 text-sm font-medium">
+                            ⚠️ {checklist.warning}
+                        </div>
+                    )}
+                </div>
 
-  if (filtered.length === 0) {
-    grid.innerHTML = '<div class="empty-state"><p>No equipment found. Add your first piece of equipment to get started.</p></div>';
-    return;
-  }
+                {/* Progress Bar */}
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                    <div className="flex justify-between text-sm mb-1">
+                        <span className="font-medium">Progress</span>
+                        <span className="text-gray-500">{checkedItems} / {totalItems} items ({progress}%)</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-3">
+                        <div className="bg-sse-orange h-3 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+                    </div>
+                </div>
 
-  grid.innerHTML = filtered.map(eq => `
-    <div class="equip-card">
-      <div class="equip-card-head">
-        <div>
-          <div class="equip-id">${eq.equipment_id}</div>
-          <div class="equip-type">${eq.equipment_type}</div>
-        </div>
-        <span class="status-tag" style="font-size:11px;background:rgba(255,255,255,0.06);color:var(--gray-400)">${eq.category}</span>
-      </div>
-      <div class="equip-card-body">
-        ${eq.make ? `<div class="equip-detail"><span class="label">Make</span><span class="value">${eq.make}</span></div>` : ''}
-        ${eq.model ? `<div class="equip-detail"><span class="label">Model</span><span class="value">${eq.model}</span></div>` : ''}
-        ${eq.serial_number ? `<div class="equip-detail"><span class="label">Serial</span><span class="value">${eq.serial_number}</span></div>` : ''}
-        ${eq.capacity ? `<div class="equip-detail"><span class="label">Capacity</span><span class="value">${eq.capacity}</span></div>` : ''}
-        <div class="equip-actions">
-          <button class="inspect-btn" onclick="startInspection(${eq.id}, 'daily')">Daily</button>
-          <button class="inspect-btn" onclick="startInspection(${eq.id}, 'weekly')">Weekly</button>
-          <button class="inspect-btn" onclick="startInspection(${eq.id}, 'monthly')">Monthly</button>
-        </div>
-      </div>
-    </div>
-  `).join('');
-}
+                {/* Inspector Info */}
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Inspector Name *</label>
+                            <input type="text" value={inspectorName} onChange={e => setInspectorName(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Your name" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Hour Meter / Run Time</label>
+                            <input type="number" value={hourMeter} onChange={e => setHourMeter(e.target.value)}
+                                className="w-full border rounded-lg px-3 py-2 text-sm" placeholder="Reading" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+                            <input type="text" readOnly value={new Date().toLocaleDateString()}
+                                className="w-full border rounded-lg px-3 py-2 text-sm bg-gray-50" />
+                        </div>
+                    </div>
+                </div>
 
-function filterEquipment(filter, el) {
-  currentFilter = filter;
-  document.querySelectorAll('#page-equipment .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderEquipment();
-}
+                {/* Checklist Sections */}
+                {checklist.sections.map((section, si) => (
+                    <div key={si} className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                        <div className="bg-sse-navy text-white px-4 py-3">
+                            <h3 className="font-bold text-sm">{section.name}</h3>
+                        </div>
+                        <div className="divide-y">
+                            {section.items.map((item, ii) => {
+                                const key = `${section.name}|||${item}`;
+                                const val = formData[key] || { status: '', comments: '' };
+                                return (
+                                    <div key={ii} className={`p-3 ${val.status === 'needs_attention' ? 'bg-red-50' : ''}`}>
+                                        <div className="flex items-start gap-3">
+                                            <div className="flex-1">
+                                                <p className="text-sm font-medium text-gray-800">{item}</p>
+                                            </div>
+                                            <div className="flex gap-1 shrink-0">
+                                                <button onClick={() => setItemStatus(key, 'ok')}
+                                                    className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
+                                                        val.status === 'ok' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-green-100'
+                                                    }`}>OK</button>
+                                                <button onClick={() => setItemStatus(key, 'needs_attention')}
+                                                    className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
+                                                        val.status === 'needs_attention' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-red-100'
+                                                    }`}>ATTN</button>
+                                                <button onClick={() => setItemStatus(key, 'na')}
+                                                    className={`px-3 py-1 rounded text-xs font-bold transition-colors ${
+                                                        val.status === 'na' ? 'bg-gray-600 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'
+                                                    }`}>N/A</button>
+                                            </div>
+                                        </div>
+                                        {val.status === 'needs_attention' && (
+                                            <div className="mt-2">
+                                                <input type="text" placeholder="Describe the issue..."
+                                                    value={val.comments} onChange={e => setItemComment(key, e.target.value)}
+                                                    className="w-full border border-red-300 rounded px-3 py-1.5 text-sm bg-white" />
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
 
-// ===== ADD EQUIPMENT MODAL =====
-function showAddEquipment() {
-  const mc = document.getElementById('modalContainer');
-  mc.innerHTML = `
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="modal-header"><span class="modal-title">Add Equipment</span><button class="close-btn" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Equipment ID *</label>
-            <input class="form-input" id="eqId" placeholder="e.g. TH-001, FK-002, PIRANHA-01">
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Type *</label>
-              <select class="form-select" id="eqType" onchange="autoCategory()">
-                <option value="telehandler">Telehandler</option>
-                <option value="forklift">Forklift</option>
-                <option value="crane">Crane</option>
-                <option value="aerial-lift">Aerial Lift</option>
-                <option value="piranha-laser">Piranha Laser</option>
-                <option value="python-beam">Python Beam Line</option>
-                <option value="python-plasma">Python Plasma</option>
-                <option value="emi-cutting">EMI Cutting Machine</option>
-                <option value="press-brake">Press Brake</option>
-                <option value="plate-roller">Plate Roller</option>
-              </select>
+                {/* General Comments */}
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">General Comments</label>
+                    <textarea value={generalComments} onChange={e => setGeneralComments(e.target.value)}
+                        className="w-full border rounded-lg px-3 py-2 text-sm" rows="3" placeholder="Any additional notes..." />
+                </div>
+
+                {/* Submit */}
+                <div className="bg-white rounded-xl shadow-sm border p-4 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm text-gray-500">{checkedItems} / {totalItems} items checked</p>
+                        {Object.values(formData).some(i => i.status === 'needs_attention') && (
+                            <p className="text-sm text-red-600 font-medium">
+                                ⚠️ {Object.values(formData).filter(i => i.status === 'needs_attention').length} item(s) need attention — work tickets will be auto-created
+                            </p>
+                        )}
+                    </div>
+                    <button onClick={handleSubmit} disabled={submitting || !allItemsChecked() || !inspectorName.trim()}
+                        className={`px-6 py-3 rounded-xl font-bold text-white transition-colors ${
+                            submitting || !allItemsChecked() || !inspectorName.trim()
+                                ? 'bg-gray-400 cursor-not-allowed' : 'bg-sse-orange hover:bg-orange-600'
+                        }`}>
+                        {submitting ? 'Submitting...' : 'Submit Inspection'}
+                    </button>
+                </div>
             </div>
-            <div class="form-group">
-              <label class="form-label">Category</label>
-              <select class="form-select" id="eqCategory">
-                <option value="field">Field</option>
-                <option value="shop">Shop</option>
-              </select>
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Make</label>
-              <input class="form-input" id="eqMake" placeholder="e.g. JLG, Caterpillar">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Model</label>
-              <input class="form-input" id="eqModel" placeholder="e.g. 1255, TL1255D">
-            </div>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Serial Number</label>
-              <input class="form-input" id="eqSerial">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Capacity</label>
-              <input class="form-input" id="eqCapacity" placeholder="e.g. 12,000 lbs">
-            </div>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-primary" onclick="saveEquipment()">Add Equipment</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function autoCategory() {
-  const shopTypes = ['piranha-laser','python-beam','python-plasma','emi-cutting','press-brake','plate-roller'];
-  const type = document.getElementById('eqType').value;
-  document.getElementById('eqCategory').value = shopTypes.includes(type) ? 'shop' : 'field';
-}
-
-async function saveEquipment() {
-  const data = {
-    equipment_id: document.getElementById('eqId').value.trim(),
-    equipment_type: document.getElementById('eqType').value,
-    category: document.getElementById('eqCategory').value,
-    make: document.getElementById('eqMake').value.trim() || null,
-    model: document.getElementById('eqModel').value.trim() || null,
-    serial_number: document.getElementById('eqSerial').value.trim() || null,
-    capacity: document.getElementById('eqCapacity').value.trim() || null
-  };
-
-  if (!data.equipment_id) { showToast('Equipment ID is required', 'error'); return; }
-
-  try {
-    await apiPost('/equipment', data);
-    closeModal();
-    showToast('Equipment added');
-    loadEquipment();
-  } catch(e) { showToast(e.message, 'error'); }
-}
-
-// ===== INSPECTION FORM =====
-function startInspection(equipmentId, type) {
-  const eq = allEquipment.find(e => e.id === equipmentId);
-  if (!eq) return;
-
-  const checklist = getChecklist(type);
-  const today = new Date().toISOString().split('T')[0];
-
-  let itemsHtml = checklist.sections.map(section => `
-    <div class="checklist-section">
-      <div class="section-title">${section.name}</div>
-      ${section.items.map(item => `
-        <div class="checklist-item">
-          <div style="flex:1">
-            <div class="item-label">${item.label}</div>
-            <input class="item-comment" data-id="${item.id}" placeholder="Comments (optional)" style="display:none">
-          </div>
-          <div class="status-btns">
-            <button class="status-btn ok" data-item="${item.id}" data-status="ok" onclick="setItemStatus(this)">OK</button>
-            <button class="status-btn fail" data-item="${item.id}" data-status="needs_attention" onclick="setItemStatus(this)">⚠</button>
-            <button class="status-btn na" data-item="${item.id}" data-status="na" onclick="setItemStatus(this)">N/A</button>
-          </div>
-        </div>
-      `).join('')}
-    </div>
-  `).join('');
-
-  const mc = document.getElementById('modalContainer');
-  mc.innerHTML = `
-    <div class="modal-overlay">
-      <div class="modal modal-lg">
-        <div class="modal-header">
-          <div>
-            <div class="modal-title">${checklist.title}</div>
-            <div style="font-size:13px;color:var(--gray-400);margin-top:2px">${eq.equipment_id} — ${eq.make || ''} ${eq.model || ''}</div>
-          </div>
-          <button class="close-btn" onclick="closeModal()">&times;</button>
-        </div>
-        <div class="modal-body">
-          <div class="form-row" style="margin-bottom:20px">
-            <div class="form-group">
-              <label class="form-label">Inspector Name *</label>
-              <input class="form-input" id="inspName">
-            </div>
-            <div class="form-group">
-              <label class="form-label">Date</label>
-              <input class="form-input" id="inspDate" type="date" value="${today}">
-            </div>
-          </div>
-          <div class="form-group" style="margin-bottom:20px">
-            <label class="form-label">Hour Meter Reading</label>
-            <input class="form-input" id="inspHours" type="number" placeholder="Current hour meter" style="max-width:200px">
-          </div>
-
-          <div style="display:flex;justify-content:flex-end;margin-bottom:12px;gap:8px">
-            <button class="btn btn-sm btn-secondary" onclick="markAllOk()">Mark All OK</button>
-          </div>
-
-          ${itemsHtml}
-
-          <div style="margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,0.06)">
-            <label class="form-label">Overall Equipment Status *</label>
-            <div class="overall-status-group">
-              <button class="overall-radio safe" data-val="safe" onclick="setOverall(this)">✓ Safe to Operate</button>
-              <button class="overall-radio needs_repair" data-val="needs_repair" onclick="setOverall(this)">⚠ Needs Repair</button>
-              <button class="overall-radio out_of_service" data-val="out_of_service" onclick="setOverall(this)">✕ Out of Service</button>
-            </div>
-          </div>
-
-          <div class="form-group" style="margin-top:16px">
-            <label class="form-label">General Comments</label>
-            <textarea class="form-textarea" id="inspComments" placeholder="Additional notes..."></textarea>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-primary" onclick="submitInspection(${equipmentId}, '${type}')">Submit Inspection</button>
-        </div>
-      </div>
-    </div>
-  `;
-}
-
-function setItemStatus(btn) {
-  const itemId = btn.dataset.item;
-  // Clear siblings
-  btn.parentElement.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-
-  // Show comment field if needs_attention
-  const commentInput = document.querySelector(`input.item-comment[data-id="${itemId}"]`);
-  if (btn.dataset.status === 'needs_attention') {
-    commentInput.style.display = '';
-    commentInput.focus();
-  } else {
-    commentInput.style.display = 'none';
-  }
-}
-
-function setOverall(btn) {
-  document.querySelectorAll('.overall-radio').forEach(b => b.classList.remove('selected'));
-  btn.classList.add('selected');
-}
-
-function markAllOk() {
-  document.querySelectorAll('.status-btn.ok').forEach(btn => {
-    btn.parentElement.querySelectorAll('.status-btn').forEach(b => b.classList.remove('selected'));
-    btn.classList.add('selected');
-  });
-}
-
-async function submitInspection(equipmentId, type) {
-  const name = document.getElementById('inspName').value.trim();
-  const date = document.getElementById('inspDate').value;
-  const hours = document.getElementById('inspHours').value;
-  const comments = document.getElementById('inspComments').value.trim();
-  const overall = document.querySelector('.overall-radio.selected');
-
-  if (!name) { showToast('Inspector name is required', 'error'); return; }
-  if (!overall) { showToast('Select overall equipment status', 'error'); return; }
-
-  const checklist = getChecklist(type);
-  const items = [];
-  let allAnswered = true;
-
-  checklist.sections.forEach(section => {
-    section.items.forEach(item => {
-      const selected = document.querySelector(`.status-btn.selected[data-item="${item.id}"]`);
-      if (!selected) { allAnswered = false; return; }
-      const comment = document.querySelector(`input.item-comment[data-id="${item.id}"]`);
-      items.push({
-        category: section.name,
-        item_name: item.label,
-        status: selected.dataset.status,
-        comments: comment ? comment.value.trim() || null : null
-      });
-    });
-  });
-
-  if (!allAnswered) { showToast('Please check all items (OK, ⚠, or N/A)', 'error'); return; }
-
-  try {
-    const result = await apiPost('/inspections', {
-      equipment_id: equipmentId,
-      inspection_type: type,
-      inspection_date: date,
-      inspector_name: name,
-      hour_meter_reading: hours ? parseInt(hours) : null,
-      overall_status: overall.dataset.val,
-      general_comments: comments || null,
-      items: items
-    });
-
-    closeModal();
-    let msg = 'Inspection submitted';
-    if (result.work_tickets_created > 0) {
-      msg += ` — ${result.work_tickets_created} work ticket(s) created`;
+        );
     }
-    showToast(msg);
-    loadDashboard();
-    showPage('dashboard');
-  } catch(e) { showToast(e.message, 'error'); }
 }
 
-// ===== INSPECTIONS HISTORY =====
-async function loadInspections() {
-  try {
-    allInspections = await apiGet('/inspections');
-    renderInspections();
-  } catch(e) { console.error(e); }
-}
+// =============================================================================
+// HISTORY PAGE
+// =============================================================================
+function HistoryPage({ equipment }) {
+    const [inspections, setInspections] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [selected, setSelected] = useState(null);
+    const [detail, setDetail] = useState(null);
 
-function renderInspections() {
-  const tbody = document.getElementById('inspectionsBody');
-  if (allInspections.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray-500)">No inspections recorded yet</td></tr>';
-    return;
-  }
+    useEffect(() => {
+        API.get('/inspections?limit=100').then(setInspections).catch(console.error).finally(() => setLoading(false));
+    }, []);
 
-  tbody.innerHTML = allInspections.map(i => `
-    <tr>
-      <td>${i.inspection_date}</td>
-      <td>${i.equipment_code || ''} <span style="color:var(--gray-500);font-size:12px">${i.equipment_type || ''}</span></td>
-      <td style="text-transform:capitalize">${i.inspection_type}</td>
-      <td>${i.inspector_name}</td>
-      <td><span class="status-tag status-${i.overall_status}">${fmtStatus(i.overall_status)}</span></td>
-      <td><button class="btn btn-ghost btn-sm" onclick="viewInspection(${i.id})">View</button></td>
-    </tr>
-  `).join('');
-}
+    const viewDetail = async (id) => {
+        try {
+            const data = await API.get(`/inspections/${id}`);
+            setDetail(data);
+            setSelected(id);
+        } catch (e) { console.error(e); }
+    };
 
-async function viewInspection(id) {
-  try {
-    const insp = await apiGet('/inspections/' + id);
-    const mc = document.getElementById('modalContainer');
+    if (loading) return <LoadingSpinner />;
 
-    const grouped = {};
-    (insp.items || []).forEach(item => {
-      if (!grouped[item.category]) grouped[item.category] = [];
-      grouped[item.category].push(item);
-    });
-
-    mc.innerHTML = `
-      <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-        <div class="modal modal-lg">
-          <div class="modal-header">
-            <div>
-              <div class="modal-title">${fmtStatus(insp.inspection_type)} Inspection — ${insp.equipment_code || ''}</div>
-              <div style="font-size:13px;color:var(--gray-400)">${insp.inspection_date} by ${insp.inspector_name}</div>
+    if (detail) {
+        const failedItems = (detail.items || []).filter(i => i.status === 'needs_attention');
+        return (
+            <div className="space-y-4">
+                <button onClick={() => { setDetail(null); setSelected(null); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
+                    ← Back to History
+                </button>
+                <div className="bg-white rounded-xl shadow-sm border p-6">
+                    <div className="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 className="text-xl font-bold text-sse-navy capitalize">{detail.inspection_type} Inspection</h2>
+                            <p className="text-gray-500">{detail.equipment_code} — {detail.inspection_date}</p>
+                            <p className="text-sm text-gray-400">Inspector: {detail.inspector_name}</p>
+                            {detail.hour_meter_reading && <p className="text-sm text-gray-400">Hour Meter: {detail.hour_meter_reading}</p>}
+                        </div>
+                        <span className={`px-4 py-2 rounded-full text-sm font-bold ${
+                            detail.overall_status === 'safe' ? 'bg-green-100 text-green-700' :
+                            detail.overall_status === 'needs_repair' ? 'bg-yellow-100 text-yellow-700' :
+                            'bg-red-100 text-red-700'
+                        }`}>{detail.overall_status === 'safe' ? 'SAFE' : detail.overall_status === 'needs_repair' ? 'NEEDS REPAIR' : 'OUT OF SERVICE'}</span>
+                    </div>
+                    {detail.general_comments && (
+                        <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                            <p className="text-sm text-gray-700"><strong>Comments:</strong> {detail.general_comments}</p>
+                        </div>
+                    )}
+                    {failedItems.length > 0 && (
+                        <div className="mb-4">
+                            <h3 className="font-bold text-red-700 mb-2">⚠️ Items Needing Attention ({failedItems.length})</h3>
+                            <div className="space-y-2">
+                                {failedItems.map((item, i) => (
+                                    <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <p className="font-medium text-red-800">{item.item_name}</p>
+                                        <p className="text-sm text-red-600">{item.category}</p>
+                                        {item.comments && <p className="text-sm text-red-700 mt-1">{item.comments}</p>}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    {/* All Items by Category */}
+                    {(() => {
+                        const grouped = {};
+                        (detail.items || []).forEach(item => {
+                            if (!grouped[item.category]) grouped[item.category] = [];
+                            grouped[item.category].push(item);
+                        });
+                        return Object.entries(grouped).map(([cat, items]) => (
+                            <div key={cat} className="mb-3">
+                                <h4 className="font-bold text-sm text-sse-navy bg-gray-100 px-3 py-2 rounded-t-lg">{cat}</h4>
+                                <div className="border border-t-0 rounded-b-lg divide-y">
+                                    {items.map((item, i) => (
+                                        <div key={i} className="flex items-center justify-between px-3 py-2 text-sm">
+                                            <span>{item.item_name}</span>
+                                            <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                                item.status === 'ok' ? 'status-ok' :
+                                                item.status === 'needs_attention' ? 'status-attn' : 'status-na'
+                                            }`}>{item.status === 'ok' ? 'OK' : item.status === 'needs_attention' ? 'ATTN' : 'N/A'}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        ));
+                    })()}
+                </div>
             </div>
-            <button class="close-btn" onclick="closeModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="insp-detail-grid">
-              <div class="insp-detail-item"><div class="dl">Equipment</div><div class="dv">${insp.equipment_code} — ${insp.equipment_type || ''} ${insp.make || ''} ${insp.model || ''}</div></div>
-              <div class="insp-detail-item"><div class="dl">Hour Meter</div><div class="dv">${insp.hour_meter_reading || 'N/A'}</div></div>
-              <div class="insp-detail-item"><div class="dl">Status</div><div class="dv"><span class="status-tag status-${insp.overall_status}">${fmtStatus(insp.overall_status)}</span></div></div>
-              <div class="insp-detail-item"><div class="dl">Comments</div><div class="dv">${insp.general_comments || 'None'}</div></div>
-            </div>
-
-            ${Object.entries(grouped).map(([cat, items]) => `
-              <div class="checklist-section">
-                <div class="section-title">${cat}</div>
-                ${items.map(item => `
-                  <div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.03)">
-                    <span class="item-status-dot dot-${item.status}"></span>
-                    <span style="flex:1;font-size:14px">${item.item_name}</span>
-                    <span style="font-size:12px;color:var(--gray-500)">${item.status === 'ok' ? 'OK' : item.status === 'needs_attention' ? 'Needs Attention' : 'N/A'}</span>
-                  </div>
-                  ${item.comments ? `<div style="font-size:13px;color:var(--yellow);padding:2px 0 6px 18px">↳ ${item.comments}</div>` : ''}
-                `).join('')}
-              </div>
-            `).join('')}
-          </div>
-          <div class="modal-footer">
-            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
-          </div>
-        </div>
-      </div>
-    `;
-  } catch(e) { showToast('Failed to load inspection', 'error'); }
-}
-
-// ===== WORK TICKETS =====
-async function loadTickets() {
-  try {
-    allTickets = await apiGet('/work-tickets');
-    renderTickets();
-  } catch(e) { console.error(e); }
-}
-
-function renderTickets() {
-  const tbody = document.getElementById('ticketsBody');
-  const filtered = ticketFilter === 'all' ? allTickets : allTickets.filter(t => t.status === ticketFilter);
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--gray-500)">No work tickets found</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = filtered.map(t => `
-    <tr>
-      <td><strong>${t.title}</strong>${t.description ? `<div style="font-size:12px;color:var(--gray-500);margin-top:2px">${t.description.substring(0,80)}</div>` : ''}</td>
-      <td>${t.equipment_code || ''}</td>
-      <td><span class="status-tag priority-${t.priority}">${fmtStatus(t.priority)}</span></td>
-      <td><span class="status-tag status-${t.status}">${fmtStatus(t.status)}</span></td>
-      <td style="font-size:13px;color:var(--gray-400)">${t.created_at ? new Date(t.created_at).toLocaleDateString() : ''}</td>
-      <td>
-        ${t.status !== 'completed' ? `
-          <button class="btn btn-ghost btn-sm" onclick="updateTicketStatus(${t.id}, '${t.status === 'open' ? 'in_progress' : 'completed'}')">
-            ${t.status === 'open' ? 'Start' : 'Complete'}
-          </button>
-        ` : ''}
-      </td>
-    </tr>
-  `).join('');
-}
-
-function filterTickets(filter, el) {
-  ticketFilter = filter;
-  document.querySelectorAll('#page-tickets .filter-chip').forEach(c => c.classList.remove('active'));
-  el.classList.add('active');
-  renderTickets();
-}
-
-async function updateTicketStatus(id, newStatus) {
-  try {
-    const updates = { status: newStatus };
-    if (newStatus === 'completed') {
-      const name = prompt('Completed by (your name):');
-      if (!name) return;
-      updates.completed_by = name;
+        );
     }
-    await apiPut('/work-tickets/' + id, updates);
-    showToast('Ticket updated');
-    loadTickets();
-  } catch(e) { showToast('Failed to update ticket', 'error'); }
-}
 
-function showCreateTicket() {
-  const mc = document.getElementById('modalContainer');
-  const eqOptions = allEquipment.length > 0
-    ? allEquipment.map(e => `<option value="${e.id}">${e.equipment_id} — ${e.equipment_type}</option>`).join('')
-    : '<option value="">No equipment added yet</option>';
-
-  mc.innerHTML = `
-    <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-      <div class="modal">
-        <div class="modal-header"><span class="modal-title">Create Work Ticket</span><button class="close-btn" onclick="closeModal()">&times;</button></div>
-        <div class="modal-body">
-          <div class="form-group">
-            <label class="form-label">Equipment *</label>
-            <select class="form-select" id="wtEquip">${eqOptions}</select>
-          </div>
-          <div class="form-group">
-            <label class="form-label">Title *</label>
-            <input class="form-input" id="wtTitle" placeholder="Brief description of the issue">
-          </div>
-          <div class="form-group">
-            <label class="form-label">Description</label>
-            <textarea class="form-textarea" id="wtDesc" placeholder="Detailed description..."></textarea>
-          </div>
-          <div class="form-row">
-            <div class="form-group">
-              <label class="form-label">Priority</label>
-              <select class="form-select" id="wtPriority">
-                <option value="normal">Normal</option>
-                <option value="high">High</option>
-                <option value="low">Low</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label">Assign To</label>
-              <input class="form-input" id="wtAssign" placeholder="Person's name">
-            </div>
-          </div>
+    return (
+        <div className="space-y-4">
+            <h2 className="text-2xl font-bold text-sse-navy">Inspection History</h2>
+            {inspections.length === 0 ? (
+                <div className="bg-white rounded-xl border p-8 text-center text-gray-500">No inspections recorded yet.</div>
+            ) : (
+                <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+                    <table className="w-full text-sm">
+                        <thead className="bg-gray-50 border-b">
+                            <tr>
+                                <th className="px-4 py-3 text-left font-medium text-gray-600">Equipment</th>
+                                <th className="px-4 py-3 text-left font-medium text-gray-600">Type</th>
+                                <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                                <th className="px-4 py-3 text-left font-medium text-gray-600">Inspector</th>
+                                <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
+                                <th className="px-4 py-3 text-left font-medium text-gray-600"></th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y">
+                            {inspections.map(insp => (
+                                <tr key={insp.id} className="hover:bg-gray-50">
+                                    <td className="px-4 py-3 font-medium">{insp.equipment_code}</td>
+                                    <td className="px-4 py-3 capitalize">{insp.inspection_type}</td>
+                                    <td className="px-4 py-3">{insp.inspection_date}</td>
+                                    <td className="px-4 py-3">{insp.inspector_name}</td>
+                                    <td className="px-4 py-3">
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                                            insp.overall_status === 'safe' ? 'bg-green-100 text-green-700' :
+                                            insp.overall_status === 'needs_repair' ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-red-100 text-red-700'
+                                        }`}>{insp.overall_status === 'safe' ? 'SAFE' : 'NEEDS REPAIR'}</span>
+                                    </td>
+                                    <td className="px-4 py-3">
+                                        <button onClick={() => viewDetail(insp.id)} className="text-sse-blue hover:underline text-sm">View</button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </div>
-        <div class="modal-footer">
-          <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
-          <button class="btn btn-primary" onclick="saveTicket()">Create Ticket</button>
+    );
+}
+
+// =============================================================================
+// WORK TICKETS PAGE
+// =============================================================================
+function WorkTicketsPage({ notify }) {
+    const [tickets, setTickets] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [filter, setFilter] = useState('open');
+
+    const loadTickets = () => {
+        setLoading(true);
+        const url = filter === 'all' ? '/work-tickets' : `/work-tickets?status=${filter}`;
+        API.get(url).then(setTickets).catch(console.error).finally(() => setLoading(false));
+    };
+
+    useEffect(() => { loadTickets(); }, [filter]);
+
+    const completeTicket = async (id) => {
+        const name = prompt('Completed by:');
+        if (!name) return;
+        try {
+            await API.put(`/work-tickets/${id}`, { status: 'completed', completed_by: name });
+            notify('Work ticket completed');
+            loadTickets();
+        } catch (e) { notify('Failed: ' + e.message, 'error'); }
+    };
+
+    const deleteTicket = async (id) => {
+        if (!confirm('Delete this work ticket?')) return;
+        try {
+            await API.del(`/work-tickets/${id}`);
+            notify('Work ticket deleted');
+            loadTickets();
+        } catch (e) { notify('Failed: ' + e.message, 'error'); }
+    };
+
+    if (loading) return <LoadingSpinner />;
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-sse-navy">Work Tickets</h2>
+                <div className="flex gap-2">
+                    {['open', 'completed', 'all'].map(f => (
+                        <button key={f} onClick={() => setFilter(f)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors capitalize ${
+                                filter === f ? 'bg-sse-navy text-white' : 'bg-white border text-gray-600 hover:bg-gray-50'
+                            }`}>{f}</button>
+                    ))}
+                </div>
+            </div>
+
+            {tickets.length === 0 ? (
+                <div className="bg-white rounded-xl border p-8 text-center text-gray-500">
+                    No {filter !== 'all' ? filter : ''} work tickets.
+                </div>
+            ) : (
+                <div className="space-y-3">
+                    {tickets.map(ticket => (
+                        <div key={ticket.id} className={`bg-white rounded-xl border p-4 ${
+                            ticket.priority === 'high' ? 'border-l-4 border-l-red-500' : 'border-l-4 border-l-yellow-400'
+                        }`}>
+                            <div className="flex items-start justify-between">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <h3 className="font-bold">{ticket.title}</h3>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                            ticket.priority === 'high' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                                        }`}>{ticket.priority.toUpperCase()}</span>
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold ${
+                                            ticket.status === 'open' ? 'bg-blue-100 text-blue-700' : 'bg-green-100 text-green-700'
+                                        }`}>{ticket.status.toUpperCase()}</span>
+                                    </div>
+                                    <p className="text-sm text-gray-500">{ticket.equipment_code} — {ticket.make} {ticket.model}</p>
+                                    {ticket.description && <p className="text-sm text-gray-600 mt-1">{ticket.description}</p>}
+                                    <p className="text-xs text-gray-400 mt-1">Created: {new Date(ticket.created_at).toLocaleDateString()}</p>
+                                    {ticket.completed_by && <p className="text-xs text-green-600 mt-1">Completed by: {ticket.completed_by}</p>}
+                                </div>
+                                {ticket.status === 'open' && (
+                                    <div className="flex gap-2 shrink-0">
+                                        <button onClick={() => completeTicket(ticket.id)}
+                                            className="px-3 py-1.5 bg-green-600 text-white text-sm rounded-lg hover:bg-green-700">
+                                            ✓ Complete
+                                        </button>
+                                        <button onClick={() => deleteTicket(ticket.id)}
+                                            className="px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-lg hover:bg-red-200">
+                                            Delete
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
-      </div>
-    </div>
-  `;
-
-  // Load equipment if not loaded
-  if (allEquipment.length === 0) {
-    apiGet('/equipment').then(eq => {
-      allEquipment = eq;
-      document.getElementById('wtEquip').innerHTML = eq.map(e =>
-        `<option value="${e.id}">${e.equipment_id} — ${e.equipment_type}</option>`
-      ).join('');
-    });
-  }
+    );
 }
 
-async function saveTicket() {
-  const data = {
-    equipment_id: parseInt(document.getElementById('wtEquip').value),
-    title: document.getElementById('wtTitle').value.trim(),
-    description: document.getElementById('wtDesc').value.trim() || null,
-    priority: document.getElementById('wtPriority').value,
-    assigned_to: document.getElementById('wtAssign').value.trim() || null
-  };
+// =============================================================================
+// EQUIPMENT PAGE
+// =============================================================================
+function EquipmentPage({ equipment, reload, notify }) {
+    const [showAdd, setShowAdd] = useState(false);
+    const [form, setForm] = useState({ equipment_id: '', equipment_type: 'telehandler_12k', category: 'field', make: '', model: '', serial_number: '', capacity: '' });
 
-  if (!data.title) { showToast('Title is required', 'error'); return; }
-  if (!data.equipment_id) { showToast('Select equipment', 'error'); return; }
+    const addEquipment = async () => {
+        if (!form.equipment_id.trim()) { notify('Equipment ID required', 'error'); return; }
+        try {
+            await API.post('/equipment', form);
+            notify('Equipment added');
+            setShowAdd(false);
+            setForm({ equipment_id: '', equipment_type: 'telehandler_12k', category: 'field', make: '', model: '', serial_number: '', capacity: '' });
+            reload();
+        } catch (e) { notify('Failed: ' + e.message, 'error'); }
+    };
 
-  try {
-    await apiPost('/work-tickets', data);
-    closeModal();
-    showToast('Work ticket created');
-    loadTickets();
-  } catch(e) { showToast(e.message, 'error'); }
+    const deactivate = async (id) => {
+        if (!confirm('Deactivate this equipment?')) return;
+        try {
+            await API.del(`/equipment/${id}`);
+            notify('Equipment deactivated');
+            reload();
+        } catch (e) { notify('Failed: ' + e.message, 'error'); }
+    };
+
+    return (
+        <div className="space-y-4">
+            <div className="flex items-center justify-between">
+                <h2 className="text-2xl font-bold text-sse-navy">Equipment</h2>
+                <button onClick={() => setShowAdd(!showAdd)}
+                    className="px-4 py-2 bg-sse-orange text-white rounded-lg font-medium hover:bg-orange-600">
+                    + Add Equipment
+                </button>
+            </div>
+
+            {showAdd && (
+                <div className="bg-white rounded-xl border p-4 space-y-3">
+                    <h3 className="font-bold text-sse-navy">Add New Equipment</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <input type="text" placeholder="Equipment ID (e.g. CRANE-01)" value={form.equipment_id}
+                            onChange={e => setForm({ ...form, equipment_id: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm" />
+                        <select value={form.equipment_type} onChange={e => setForm({ ...form, equipment_type: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm">
+                            <option value="telehandler_33k">Telehandler 33K</option>
+                            <option value="telehandler_12k">Telehandler 12K</option>
+                            <option value="emi_tube_cutter">EMI Tube Cutter</option>
+                            <option value="miller_welder">Miller Welder</option>
+                        </select>
+                        <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm">
+                            <option value="field">Field</option>
+                            <option value="shop">Shop</option>
+                        </select>
+                        <input type="text" placeholder="Make" value={form.make}
+                            onChange={e => setForm({ ...form, make: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm" />
+                        <input type="text" placeholder="Model" value={form.model}
+                            onChange={e => setForm({ ...form, model: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm" />
+                        <input type="text" placeholder="Serial Number" value={form.serial_number}
+                            onChange={e => setForm({ ...form, serial_number: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm" />
+                        <input type="text" placeholder="Capacity" value={form.capacity}
+                            onChange={e => setForm({ ...form, capacity: e.target.value })}
+                            className="border rounded-lg px-3 py-2 text-sm" />
+                        <button onClick={addEquipment} className="bg-green-600 text-white rounded-lg px-4 py-2 text-sm font-medium hover:bg-green-700">Save</button>
+                    </div>
+                </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {equipment.map(eq => (
+                    <div key={eq.id} className="bg-white rounded-xl border p-4">
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                <span className="text-3xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
+                                <div>
+                                    <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
+                                    <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                                    <p className="text-xs text-gray-400">ID: {eq.equipment_id} {eq.serial_number ? `| S/N: ${eq.serial_number}` : ''}</p>
+                                    <p className="text-xs text-gray-400">Category: {eq.category} {eq.capacity ? `| ${eq.capacity}` : ''}</p>
+                                </div>
+                            </div>
+                            <button onClick={() => deactivate(eq.id)} className="text-red-400 hover:text-red-600 text-sm">Deactivate</button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }
 
-// ===== MODAL CLOSE =====
-function closeModal() {
-  document.getElementById('modalContainer').innerHTML = '';
+// =============================================================================
+// SHARED COMPONENTS
+// =============================================================================
+function LoadingSpinner() {
+    return (
+        <div className="flex items-center justify-center py-12">
+            <div className="w-10 h-10 border-4 border-sse-orange border-t-transparent rounded-full animate-spin"></div>
+        </div>
+    );
 }
 
-// ===== INIT =====
-loadDashboard();
+// =============================================================================
+// RENDER
+// =============================================================================
+ReactDOM.render(<App />, document.getElementById('root'));
 </script>
 </body>
 </html>
-<!-- deployed -->
