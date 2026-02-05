@@ -2114,14 +2114,19 @@ function HistoryPage({ equipment, notify }) {
     // For a given inspection, determine repair status
     const getRepairStatus = (insp) => {
         if (insp.overall_status === 'safe') return { status: 'safe', label: 'SAFE', color: 'bg-green-100 text-green-700' };
+        if (insp.overall_status === 'out_of_service') return { status: 'out_of_service', label: 'OUT OF SERVICE', color: 'bg-red-100 text-red-700' };
         // Find work tickets linked to this inspection
         const related = tickets.filter(t => t.inspection_id === insp.id);
         if (related.length === 0) return { status: 'needs_repair', label: 'NEEDS REPAIR', color: 'bg-yellow-100 text-yellow-700' };
         const allCompleted = related.every(t => t.status === 'completed');
         if (allCompleted) {
             // Find the latest completion date
-            const dates = related.map(t => t.completed_at || t.updated_at).filter(Boolean);
-            const latestDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => new Date(d)))).toLocaleDateString() : '';
+            const completedDates = related.map(t => t.completed_at).filter(Boolean);
+            let latestDate = '';
+            if (completedDates.length > 0) {
+                const latest = new Date(Math.max(...completedDates.map(d => new Date(d))));
+                latestDate = latest.toLocaleDateString();
+            }
             return { status: 'repaired', label: `REPAIRED${latestDate ? ' — ' + latestDate : ''}`, color: 'bg-green-100 text-green-700' };
         }
         const completedCount = related.filter(t => t.status === 'completed').length;
@@ -2144,6 +2149,8 @@ function HistoryPage({ equipment, notify }) {
     if (detail) {
         const failedItems = (detail.items || []).filter(i => i.status === 'needs_attention');
         const relatedTickets = tickets.filter(t => t.inspection_id === detail.id);
+        const allTicketsCompleted = relatedTickets.length > 0 && relatedTickets.every(t => t.status === 'completed');
+        
         return (
             <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -2167,6 +2174,39 @@ function HistoryPage({ equipment, notify }) {
                             return <span className={`px-4 py-2 rounded-full text-sm font-bold ${rs.color}`}>{rs.label}</span>;
                         })()}
                     </div>
+                    
+                    {/* Repair Summary - shows when work tickets exist */}
+                    {relatedTickets.length > 0 && (
+                        <div className={`rounded-lg p-4 mb-4 ${allTicketsCompleted ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'}`}>
+                            <h3 className={`font-bold mb-2 ${allTicketsCompleted ? 'text-green-700' : 'text-yellow-700'}`}>
+                                {allTicketsCompleted ? '✅ All Repairs Completed' : '⏳ Repairs In Progress'}
+                            </h3>
+                            <div className="space-y-2">
+                                {relatedTickets.map((ticket, i) => (
+                                    <div key={i} className={`p-3 rounded ${ticket.status === 'completed' ? 'bg-green-100' : 'bg-yellow-100'}`}>
+                                        <div className="flex items-center justify-between">
+                                            <div>
+                                                <p className="font-medium text-sm">{ticket.title}</p>
+                                                {ticket.description && <p className="text-xs text-gray-600">{ticket.description}</p>}
+                                            </div>
+                                            <div className="text-right">
+                                                {ticket.status === 'completed' ? (
+                                                    <div>
+                                                        <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">COMPLETED</span>
+                                                        <p className="text-xs text-green-700 mt-1">By: {ticket.completed_by}</p>
+                                                        <p className="text-xs text-green-600">{new Date(ticket.completed_at).toLocaleDateString()} {new Date(ticket.completed_at).toLocaleTimeString()}</p>
+                                                    </div>
+                                                ) : (
+                                                    <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-bold rounded">OPEN</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                    
                     {detail.general_comments && (
                         <div className="bg-gray-50 rounded-lg p-3 mb-4">
                             <p className="text-sm text-gray-700"><strong>Comments:</strong> {detail.general_comments}</p>
@@ -2177,11 +2217,9 @@ function HistoryPage({ equipment, notify }) {
                             <h3 className="font-bold text-red-700 mb-2">⚠️ Items Needing Attention ({failedItems.length})</h3>
                             <div className="space-y-2">
                                 {failedItems.map((item, i) => {
-                                    // Try to find a matching work ticket for this item
-                                    const matchTicket = relatedTickets.find(t =>
+                                    // Find matching work ticket by inspection_id
+                                    const matchTicket = relatedTickets.find(t => 
                                         t.title && t.title.includes(item.item_name?.substring(0, 30))
-                                    ) || relatedTickets.find(t =>
-                                        t.description && item.comments && t.description.includes(item.comments.substring(0, 20))
                                     );
                                     const isFixed = matchTicket && matchTicket.status === 'completed';
                                     return (
@@ -2194,13 +2232,11 @@ function HistoryPage({ equipment, notify }) {
                                                     <p className={`text-sm ${isFixed ? 'text-green-600' : 'text-red-600'}`}>{item.category}</p>
                                                     {item.comments && <p className={`text-sm mt-1 ${isFixed ? 'text-green-700' : 'text-red-700'}`}>{item.comments}</p>}
                                                 </div>
-                                                {isFixed && (
+                                                {isFixed && matchTicket && (
                                                     <div className="text-right shrink-0 ml-3">
                                                         <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">REPAIRED</span>
-                                                        {matchTicket.completed_by && <p className="text-xs text-green-600 mt-1">By: {matchTicket.completed_by}</p>}
-                                                        {(matchTicket.completed_at || matchTicket.updated_at) && (
-                                                            <p className="text-xs text-green-500">{new Date(matchTicket.completed_at || matchTicket.updated_at).toLocaleDateString()}</p>
-                                                        )}
+                                                        <p className="text-xs text-green-600 mt-1">By: {matchTicket.completed_by}</p>
+                                                        <p className="text-xs text-green-500">{new Date(matchTicket.completed_at).toLocaleDateString()}</p>
                                                     </div>
                                                 )}
                                                 {!isFixed && matchTicket && (
