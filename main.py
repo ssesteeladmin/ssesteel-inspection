@@ -713,9 +713,6 @@ async def get_dashboard():
 async def health():
     return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
-if STATIC_DIR.exists():
-    app.mount("/assets", StaticFiles(directory=STATIC_DIR / "assets"), name="assets")
-
 @app.get("/")
 async def root():
     index = STATIC_DIR / "index.html"
