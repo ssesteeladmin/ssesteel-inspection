@@ -2052,13 +2052,40 @@ function NewInspectionPage({ equipment, notify, setPage }) {
 // =============================================================================
 function HistoryPage({ equipment }) {
     const [inspections, setInspections] = useState([]);
+    const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState(null);
     const [detail, setDetail] = useState(null);
 
     useEffect(() => {
-        API.get('/inspections?limit=100').then(setInspections).catch(console.error).finally(() => setLoading(false));
+        Promise.all([
+            API.get('/inspections?limit=100'),
+            API.get('/work-tickets?status=all').catch(() => API.get('/work-tickets').catch(() => []))
+        ]).then(([insp, tix]) => {
+            setInspections(insp);
+            setTickets(Array.isArray(tix) ? tix : []);
+        }).catch(console.error).finally(() => setLoading(false));
     }, []);
+
+    // For a given inspection, determine repair status
+    const getRepairStatus = (insp) => {
+        if (insp.overall_status === 'safe') return { status: 'safe', label: 'SAFE', color: 'bg-green-100 text-green-700' };
+        // Find work tickets linked to this inspection
+        const related = tickets.filter(t => t.inspection_id === insp.id);
+        if (related.length === 0) return { status: 'needs_repair', label: 'NEEDS REPAIR', color: 'bg-yellow-100 text-yellow-700' };
+        const allCompleted = related.every(t => t.status === 'completed');
+        if (allCompleted) {
+            // Find the latest completion date
+            const dates = related.map(t => t.completed_at || t.updated_at).filter(Boolean);
+            const latestDate = dates.length > 0 ? new Date(Math.max(...dates.map(d => new Date(d)))).toLocaleDateString() : '';
+            return { status: 'repaired', label: `REPAIRED${latestDate ? ' — ' + latestDate : ''}`, color: 'bg-green-100 text-green-700' };
+        }
+        const completedCount = related.filter(t => t.status === 'completed').length;
+        if (completedCount > 0) {
+            return { status: 'partial', label: `${completedCount}/${related.length} REPAIRED`, color: 'bg-orange-100 text-orange-700' };
+        }
+        return { status: 'needs_repair', label: 'NEEDS REPAIR', color: 'bg-yellow-100 text-yellow-700' };
+    };
 
     const viewDetail = async (id) => {
         try {
@@ -2072,6 +2099,7 @@ function HistoryPage({ equipment }) {
 
     if (detail) {
         const failedItems = (detail.items || []).filter(i => i.status === 'needs_attention');
+        const relatedTickets = tickets.filter(t => t.inspection_id === detail.id);
         return (
             <div className="space-y-4">
                 <button onClick={() => { setDetail(null); setSelected(null); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
@@ -2085,11 +2113,10 @@ function HistoryPage({ equipment }) {
                             <p className="text-sm text-gray-400">Inspector: {detail.inspector_name}</p>
                             {detail.hour_meter_reading && <p className="text-sm text-gray-400">Hour Meter: {detail.hour_meter_reading}</p>}
                         </div>
-                        <span className={`px-4 py-2 rounded-full text-sm font-bold ${
-                            detail.overall_status === 'safe' ? 'bg-green-100 text-green-700' :
-                            detail.overall_status === 'needs_repair' ? 'bg-yellow-100 text-yellow-700' :
-                            'bg-red-100 text-red-700'
-                        }`}>{detail.overall_status === 'safe' ? 'SAFE' : detail.overall_status === 'needs_repair' ? 'NEEDS REPAIR' : 'OUT OF SERVICE'}</span>
+                        {(() => {
+                            const rs = getRepairStatus(detail);
+                            return <span className={`px-4 py-2 rounded-full text-sm font-bold ${rs.color}`}>{rs.label}</span>;
+                        })()}
                     </div>
                     {detail.general_comments && (
                         <div className="bg-gray-50 rounded-lg p-3 mb-4">
@@ -2100,13 +2127,42 @@ function HistoryPage({ equipment }) {
                         <div className="mb-4">
                             <h3 className="font-bold text-red-700 mb-2">⚠️ Items Needing Attention ({failedItems.length})</h3>
                             <div className="space-y-2">
-                                {failedItems.map((item, i) => (
-                                    <div key={i} className="bg-red-50 border border-red-200 rounded-lg p-3">
-                                        <p className="font-medium text-red-800">{item.item_name}</p>
-                                        <p className="text-sm text-red-600">{item.category}</p>
-                                        {item.comments && <p className="text-sm text-red-700 mt-1">{item.comments}</p>}
-                                    </div>
-                                ))}
+                                {failedItems.map((item, i) => {
+                                    // Try to find a matching work ticket for this item
+                                    const matchTicket = relatedTickets.find(t =>
+                                        t.title && t.title.includes(item.item_name?.substring(0, 30))
+                                    ) || relatedTickets.find(t =>
+                                        t.description && item.comments && t.description.includes(item.comments.substring(0, 20))
+                                    );
+                                    const isFixed = matchTicket && matchTicket.status === 'completed';
+                                    return (
+                                        <div key={i} className={`border rounded-lg p-3 ${isFixed ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200'}`}>
+                                            <div className="flex items-start justify-between">
+                                                <div>
+                                                    <p className={`font-medium ${isFixed ? 'text-green-800' : 'text-red-800'}`}>
+                                                        {isFixed ? '✅ ' : ''}{item.item_name}
+                                                    </p>
+                                                    <p className={`text-sm ${isFixed ? 'text-green-600' : 'text-red-600'}`}>{item.category}</p>
+                                                    {item.comments && <p className={`text-sm mt-1 ${isFixed ? 'text-green-700' : 'text-red-700'}`}>{item.comments}</p>}
+                                                </div>
+                                                {isFixed && (
+                                                    <div className="text-right shrink-0 ml-3">
+                                                        <span className="px-2 py-1 bg-green-600 text-white text-xs font-bold rounded">REPAIRED</span>
+                                                        {matchTicket.completed_by && <p className="text-xs text-green-600 mt-1">By: {matchTicket.completed_by}</p>}
+                                                        {(matchTicket.completed_at || matchTicket.updated_at) && (
+                                                            <p className="text-xs text-green-500">{new Date(matchTicket.completed_at || matchTicket.updated_at).toLocaleDateString()}</p>
+                                                        )}
+                                                    </div>
+                                                )}
+                                                {!isFixed && matchTicket && (
+                                                    <div className="text-right shrink-0 ml-3">
+                                                        <span className="px-2 py-1 bg-yellow-500 text-white text-xs font-bold rounded">OPEN</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -2158,24 +2214,23 @@ function HistoryPage({ equipment }) {
                             </tr>
                         </thead>
                         <tbody className="divide-y">
-                            {inspections.map(insp => (
+                            {inspections.map(insp => {
+                                const rs = getRepairStatus(insp);
+                                return (
                                 <tr key={insp.id} className="hover:bg-gray-50">
                                     <td className="px-4 py-3 font-medium">{insp.equipment_code}</td>
                                     <td className="px-4 py-3 capitalize">{insp.inspection_type}</td>
                                     <td className="px-4 py-3">{insp.inspection_date}</td>
                                     <td className="px-4 py-3">{insp.inspector_name}</td>
                                     <td className="px-4 py-3">
-                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                                            insp.overall_status === 'safe' ? 'bg-green-100 text-green-700' :
-                                            insp.overall_status === 'needs_repair' ? 'bg-yellow-100 text-yellow-700' :
-                                            'bg-red-100 text-red-700'
-                                        }`}>{insp.overall_status === 'safe' ? 'SAFE' : 'NEEDS REPAIR'}</span>
+                                        <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${rs.color}`}>{rs.label}</span>
                                     </td>
                                     <td className="px-4 py-3">
                                         <button onClick={() => viewDetail(insp.id)} className="text-sse-blue hover:underline text-sm">View</button>
                                     </td>
                                 </tr>
-                            ))}
+                                );
+                            })}
                         </tbody>
                     </table>
                 </div>
