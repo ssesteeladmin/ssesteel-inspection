@@ -1641,7 +1641,7 @@ function App() {
             <div className="max-w-7xl mx-auto px-4 py-6 fade-in">
                 {page === 'dashboard' && <DashboardPage equipment={equipment} />}
                 {page === 'new-inspection' && <NewInspectionPage equipment={equipment} notify={notify} setPage={setPage} />}
-                {page === 'history' && <HistoryPage equipment={equipment} />}
+                {page === 'history' && <HistoryPage equipment={equipment} notify={notify} />}
                 {page === 'work-tickets' && <WorkTicketsPage notify={notify} />}
                 {page === 'equipment' && <EquipmentPage equipment={equipment} reload={loadEquipment} notify={notify} />}
             </div>
@@ -1759,6 +1759,7 @@ function NewInspectionPage({ equipment, notify, setPage }) {
     const [inspectorName, setInspectorName] = useState('');
     const [hourMeter, setHourMeter] = useState('');
     const [generalComments, setGeneralComments] = useState('');
+    const [overallStatus, setOverallStatus] = useState('');
     const [submitting, setSubmitting] = useState(false);
 
     // Initialize form data when checklist is selected
@@ -1792,6 +1793,7 @@ function NewInspectionPage({ equipment, notify, setPage }) {
     const handleSubmit = async () => {
         if (!inspectorName.trim()) { notify('Please enter inspector name', 'error'); return; }
         if (!allItemsChecked()) { notify('Please check all items before submitting', 'error'); return; }
+        if (!overallStatus) { notify('Please select overall equipment status (Safe/Needs Repair/Out of Service)', 'error'); return; }
 
         setSubmitting(true);
         try {
@@ -1800,16 +1802,13 @@ function NewInspectionPage({ equipment, notify, setPage }) {
                 return { category, item_name, status: val.status, comments: val.comments || null };
             });
 
-            const needsAttn = items.some(i => i.status === 'needs_attention');
-            const overall = needsAttn ? 'needs_repair' : 'safe';
-
             const payload = {
                 equipment_id: selectedEquip.id,
                 inspection_type: inspType,
                 inspection_date: new Date().toISOString().split('T')[0],
                 inspector_name: inspectorName,
                 hour_meter_reading: hourMeter ? parseInt(hourMeter) : null,
-                overall_status: overall,
+                overall_status: overallStatus,
                 general_comments: generalComments || null,
                 items
             };
@@ -1924,7 +1923,7 @@ function NewInspectionPage({ equipment, notify, setPage }) {
 
         return (
             <div className="space-y-6">
-                <button onClick={() => { setStep(2); setInspType(null); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
+                <button onClick={() => { setStep(2); setInspType(null); setOverallStatus(''); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
                     ← Back to Type Selection
                 </button>
 
@@ -2024,6 +2023,37 @@ function NewInspectionPage({ equipment, notify, setPage }) {
                         className="w-full border rounded-lg px-3 py-2 text-sm" rows="3" placeholder="Any additional notes..." />
                 </div>
 
+                {/* Overall Status Selection */}
+                <div className="bg-white rounded-xl shadow-sm border p-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Overall Equipment Status *</label>
+                    <div className="flex gap-4">
+                        <button type="button" onClick={() => setOverallStatus('safe')}
+                            className={`flex-1 py-4 rounded-xl font-bold text-lg transition-all border-2 ${
+                                overallStatus === 'safe' 
+                                    ? 'bg-green-600 text-white border-green-600' 
+                                    : 'bg-white text-green-700 border-green-300 hover:border-green-500'
+                            }`}>
+                            ✅ SAFE TO OPERATE
+                        </button>
+                        <button type="button" onClick={() => setOverallStatus('needs_repair')}
+                            className={`flex-1 py-4 rounded-xl font-bold text-lg transition-all border-2 ${
+                                overallStatus === 'needs_repair' 
+                                    ? 'bg-yellow-500 text-white border-yellow-500' 
+                                    : 'bg-white text-yellow-700 border-yellow-300 hover:border-yellow-500'
+                            }`}>
+                            ⚠️ NEEDS REPAIR
+                        </button>
+                        <button type="button" onClick={() => setOverallStatus('out_of_service')}
+                            className={`flex-1 py-4 rounded-xl font-bold text-lg transition-all border-2 ${
+                                overallStatus === 'out_of_service' 
+                                    ? 'bg-red-600 text-white border-red-600' 
+                                    : 'bg-white text-red-700 border-red-300 hover:border-red-500'
+                            }`}>
+                            🚫 OUT OF SERVICE
+                        </button>
+                    </div>
+                </div>
+
                 {/* Submit */}
                 <div className="bg-white rounded-xl shadow-sm border p-4 flex items-center justify-between">
                     <div>
@@ -2034,9 +2064,9 @@ function NewInspectionPage({ equipment, notify, setPage }) {
                             </p>
                         )}
                     </div>
-                    <button onClick={handleSubmit} disabled={submitting || !allItemsChecked() || !inspectorName.trim()}
+                    <button onClick={handleSubmit} disabled={submitting || !allItemsChecked() || !inspectorName.trim() || !overallStatus}
                         className={`px-6 py-3 rounded-xl font-bold text-white transition-colors ${
-                            submitting || !allItemsChecked() || !inspectorName.trim()
+                            submitting || !allItemsChecked() || !inspectorName.trim() || !overallStatus
                                 ? 'bg-gray-400 cursor-not-allowed' : 'bg-sse-orange hover:bg-orange-600'
                         }`}>
                         {submitting ? 'Submitting...' : 'Submit Inspection'}
@@ -2050,14 +2080,15 @@ function NewInspectionPage({ equipment, notify, setPage }) {
 // =============================================================================
 // HISTORY PAGE
 // =============================================================================
-function HistoryPage({ equipment }) {
+function HistoryPage({ equipment, notify }) {
     const [inspections, setInspections] = useState([]);
     const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selected, setSelected] = useState(null);
     const [detail, setDetail] = useState(null);
 
-    useEffect(() => {
+    const loadData = () => {
+        setLoading(true);
         Promise.all([
             API.get('/inspections?limit=100'),
             API.get('/work-tickets?status=all').catch(() => API.get('/work-tickets').catch(() => []))
@@ -2065,7 +2096,20 @@ function HistoryPage({ equipment }) {
             setInspections(insp);
             setTickets(Array.isArray(tix) ? tix : []);
         }).catch(console.error).finally(() => setLoading(false));
-    }, []);
+    };
+
+    useEffect(() => { loadData(); }, []);
+
+    const deleteInspection = async (id) => {
+        if (!confirm('Delete this inspection? This cannot be undone.')) return;
+        try {
+            await API.del(`/inspections/${id}`);
+            notify('Inspection deleted');
+            setDetail(null);
+            setSelected(null);
+            loadData();
+        } catch (e) { notify('Failed to delete: ' + e.message, 'error'); }
+    };
 
     // For a given inspection, determine repair status
     const getRepairStatus = (insp) => {
@@ -2102,9 +2146,14 @@ function HistoryPage({ equipment }) {
         const relatedTickets = tickets.filter(t => t.inspection_id === detail.id);
         return (
             <div className="space-y-4">
-                <button onClick={() => { setDetail(null); setSelected(null); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
-                    ← Back to History
-                </button>
+                <div className="flex items-center justify-between">
+                    <button onClick={() => { setDetail(null); setSelected(null); }} className="text-gray-500 hover:text-sse-navy flex items-center gap-1 text-sm">
+                        ← Back to History
+                    </button>
+                    <button onClick={() => deleteInspection(detail.id)} className="px-3 py-1.5 bg-red-100 text-red-600 text-sm rounded-lg hover:bg-red-200">
+                        🗑️ Delete Inspection
+                    </button>
+                </div>
                 <div className="bg-white rounded-xl shadow-sm border p-6">
                     <div className="flex items-center justify-between mb-4">
                         <div>
@@ -2226,7 +2275,10 @@ function HistoryPage({ equipment }) {
                                         <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${rs.color}`}>{rs.label}</span>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <button onClick={() => viewDetail(insp.id)} className="text-sse-blue hover:underline text-sm">View</button>
+                                        <div className="flex gap-2">
+                                            <button onClick={() => viewDetail(insp.id)} className="text-sse-blue hover:underline text-sm">View</button>
+                                            <button onClick={() => deleteInspection(insp.id)} className="text-red-500 hover:underline text-sm">Delete</button>
+                                        </div>
                                     </td>
                                 </tr>
                                 );
