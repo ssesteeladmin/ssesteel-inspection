@@ -557,7 +557,7 @@ async def get_work_tickets(status: Optional[str] = None, equipment_id: Optional[
     """
     params = []
     
-    if status:
+    if status and status != 'all':
         query += " AND wt.status = %s" if USE_POSTGRES else " AND wt.status = ?"
         params.append(status)
     

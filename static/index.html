@@ -1654,11 +1654,45 @@ function App() {
 // =============================================================================
 function DashboardPage({ equipment }) {
     const [stats, setStats] = useState(null);
+    const [tickets, setTickets] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        API.get('/dashboard').then(setStats).catch(console.error).finally(() => setLoading(false));
+        Promise.all([
+            API.get('/dashboard'),
+            API.get('/work-tickets?status=all').catch(() => [])
+        ]).then(([dashData, tix]) => {
+            setStats(dashData);
+            setTickets(Array.isArray(tix) ? tix : []);
+        }).catch(console.error).finally(() => setLoading(false));
     }, []);
+
+    // Determine repair status for a recent inspection based on work tickets
+    const getInspRepairStatus = (insp) => {
+        if (insp.overall_status === 'safe') return { label: 'SAFE', color: 'bg-green-100 text-green-700' };
+        if (insp.overall_status === 'out_of_service') {
+            const related = tickets.filter(t => t.inspection_id === insp.id);
+            const allDone = related.length > 0 && related.every(t => t.status === 'completed');
+            if (allDone) {
+                const dates = related.map(t => t.completed_at).filter(Boolean);
+                const latest = dates.length > 0 ? new Date(Math.max(...dates.map(d => new Date(d)))).toLocaleDateString() : '';
+                return { label: `REPAIRED${latest ? ' — ' + latest : ''}`, color: 'bg-green-100 text-green-700' };
+            }
+            return { label: 'OUT OF SERVICE', color: 'bg-red-100 text-red-700' };
+        }
+        // needs_repair
+        const related = tickets.filter(t => t.inspection_id === insp.id);
+        if (related.length === 0) return { label: 'NEEDS REPAIR', color: 'bg-yellow-100 text-yellow-700' };
+        const allDone = related.every(t => t.status === 'completed');
+        if (allDone) {
+            const dates = related.map(t => t.completed_at).filter(Boolean);
+            const latest = dates.length > 0 ? new Date(Math.max(...dates.map(d => new Date(d)))).toLocaleDateString() : '';
+            return { label: `REPAIRED${latest ? ' — ' + latest : ''}`, color: 'bg-green-100 text-green-700' };
+        }
+        const doneCount = related.filter(t => t.status === 'completed').length;
+        if (doneCount > 0) return { label: `${doneCount}/${related.length} REPAIRED`, color: 'bg-orange-100 text-orange-700' };
+        return { label: 'NEEDS REPAIR', color: 'bg-yellow-100 text-yellow-700' };
+    };
 
     if (loading) return <LoadingSpinner />;
 
@@ -1709,19 +1743,18 @@ function DashboardPage({ equipment }) {
             <div className="bg-white rounded-xl shadow-sm border p-6">
                 <h3 className="text-lg font-bold text-sse-navy mb-4">Recent Inspections</h3>
                 <div className="space-y-2">
-                    {(stats?.recent_inspections || []).map((insp, i) => (
+                    {(stats?.recent_inspections || []).map((insp, i) => {
+                        const rs = getInspRepairStatus(insp);
+                        return (
                         <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                             <div>
                                 <p className="font-medium">{insp.equipment_code} — <span className="capitalize">{insp.inspection_type}</span></p>
                                 <p className="text-sm text-gray-500">By {insp.inspector_name} on {insp.inspection_date}</p>
                             </div>
-                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                                insp.overall_status === 'safe' ? 'bg-green-100 text-green-700' :
-                                insp.overall_status === 'needs_repair' ? 'bg-yellow-100 text-yellow-700' :
-                                'bg-red-100 text-red-700'
-                            }`}>{insp.overall_status === 'safe' ? 'SAFE' : insp.overall_status === 'needs_repair' ? 'NEEDS REPAIR' : 'OUT OF SERVICE'}</span>
+                            <span className={`px-3 py-1 rounded-full text-xs font-bold ${rs.color}`}>{rs.label}</span>
                         </div>
-                    ))}
+                        );
+                    })}
                     {(!stats?.recent_inspections || stats.recent_inspections.length === 0) && (
                         <p className="text-gray-500 text-center py-4">No inspections yet. Start a new inspection!</p>
                     )}
@@ -2402,7 +2435,12 @@ function WorkTicketsPage({ notify }) {
                                     <p className="text-sm text-gray-500">{ticket.equipment_code} — {ticket.make} {ticket.model}</p>
                                     {ticket.description && <p className="text-sm text-gray-600 mt-1">{ticket.description}</p>}
                                     <p className="text-xs text-gray-400 mt-1">Created: {new Date(ticket.created_at).toLocaleDateString()}</p>
-                                    {ticket.completed_by && <p className="text-xs text-green-600 mt-1">Completed by: {ticket.completed_by}</p>}
+                                    {ticket.completed_by && (
+                                        <div className="mt-1">
+                                            <p className="text-xs text-green-600">✅ Completed by: {ticket.completed_by}</p>
+                                            {ticket.completed_at && <p className="text-xs text-green-500">Repairs finished: {new Date(ticket.completed_at).toLocaleDateString()} at {new Date(ticket.completed_at).toLocaleTimeString()}</p>}
+                                        </div>
+                                    )}
                                 </div>
                                 {ticket.status === 'open' && (
                                     <div className="flex gap-2 shrink-0">
