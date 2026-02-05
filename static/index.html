@@ -47,51 +47,58 @@ const API = {
 };
 
 // =============================================================================
-// EQUIPMENT DEFINITIONS
+// DYNAMIC EQUIPMENT DISPLAY — works for ANY equipment from the API
 // =============================================================================
-const EQUIPMENT_SEED = [
-    { equipment_id: 'BIG-RED-01', equipment_type: 'telehandler_33k', category: 'field', make: 'Taylor', model: 'Forklift 33K', serial_number: '', capacity: '33,000 lb' },
-    { equipment_id: 'BLUE-GENIE-01', equipment_type: 'telehandler_12k', category: 'field', make: 'Genie', model: 'Telehandler 12K', serial_number: '', capacity: '12,000 lb' },
-    { equipment_id: 'GREEN-JLG-01', equipment_type: 'telehandler_12k', category: 'field', make: 'JLG', model: 'Telehandler 12K', serial_number: '0160064879', capacity: '12,000 lb' },
-    { equipment_id: 'ORANGE-GENIE-01', equipment_type: 'telehandler_12k', category: 'field', make: 'Genie', model: 'Telehandler 12K', serial_number: '', capacity: '12,000 lb' },
-    { equipment_id: 'EMI-TC-01', equipment_type: 'emi_tube_cutter', category: 'shop', make: 'EMI', model: 'TPC2464 Tube Cutter', serial_number: '', capacity: '5" Max' },
-    { equipment_id: 'MILLER-350P-01', equipment_type: 'miller_welder', category: 'shop', make: 'Miller', model: 'Millermatic 350P', serial_number: '', capacity: '' },
-    { equipment_id: 'PIRANHA-01', equipment_type: 'piranha_laser', category: 'shop', make: 'Piranha', model: '6kW Fiber Laser', serial_number: '', capacity: "5' x 10' Table" },
-    { equipment_id: 'PYTHON-BL-01', equipment_type: 'python_beam_line', category: 'shop', make: 'Python', model: 'X Beam Line', serial_number: '', capacity: "100' Infeed / 40' Outfeed" },
-    { equipment_id: 'PYTHON-PT-01', equipment_type: 'python_plasma', category: 'shop', make: 'Python', model: "X Plasma Table 10'x25'", serial_number: '', capacity: '300A Hypertherm' },
-    { equipment_id: 'PRESS-01', equipment_type: 'press_brake', category: 'shop', make: 'Standard', model: '350T Hydraulic Press Brake', serial_number: '', capacity: '350 Ton' },
-    { equipment_id: 'ROUNDO-01', equipment_type: 'plate_roller', category: 'shop', make: 'Roundo', model: 'Plate Roller', serial_number: '', capacity: '' },
-];
-
-const EQUIPMENT_DISPLAY = {
-    'telehandler_33k': { label: 'Telehandler 33K (BIG RED)', icon: '🔴', color: 'red' },
-    'telehandler_12k': { label: 'Telehandler 12K', icon: '🏗️', color: 'blue' },
-    'emi_tube_cutter': { label: 'EMI TPC2464 Tube Cutter', icon: '⚙️', color: 'purple' },
-    'miller_welder': { label: 'Miller Millermatic 350P', icon: '🔥', color: 'orange' },
-    'piranha_laser': { label: 'Piranha 6kW Fiber Laser', icon: '🔆', color: 'red' },
-    'python_beam_line': { label: 'Python X Beam Line', icon: '📐', color: 'green' },
-    'python_plasma': { label: 'Python X Plasma Table', icon: '⚡', color: 'blue' },
-    'press_brake': { label: '350T Press Brake', icon: '🔧', color: 'gray' },
-    'plate_roller': { label: 'Roundo Plate Roller', icon: '🔄', color: 'purple' },
+// Known equipment types get specific icons/labels; unknown types get smart defaults
+const KNOWN_DISPLAY = {
+    'telehandler_33k': { icon: '🔴', label: 'Telehandler 33K' },
+    'telehandler_12k': { icon: '🏗️', label: 'Telehandler 12K' },
+    'emi_tube_cutter': { icon: '⚙️', label: 'EMI Tube Cutter' },
+    'miller_welder':   { icon: '🔥', label: 'Miller Welder' },
+    'piranha_laser':   { icon: '🔆', label: 'Piranha Fiber Laser' },
+    'python_beam_line':{ icon: '📐', label: 'Python Beam Line' },
+    'python_plasma':   { icon: '⚡', label: 'Python Plasma Table' },
+    'press_brake':     { icon: '🔧', label: 'Press Brake' },
+    'plate_roller':    { icon: '🔄', label: 'Plate Roller' },
 };
 
-function getEquipmentNickname(eq) {
-    if (eq.equipment_id === 'BIG-RED-01') return 'BIG RED';
-    if (eq.equipment_id === 'BLUE-GENIE-01') return 'BLUE GENIE';
-    if (eq.equipment_id === 'GREEN-JLG-01') return 'GREEN JLG';
-    if (eq.equipment_id === 'ORANGE-GENIE-01') return 'ORANGE GENIE';
-    if (eq.equipment_id === 'EMI-TC-01') return 'EMI Tube Cutter';
-    if (eq.equipment_id === 'MILLER-350P-01') return 'Miller 350P';
-    if (eq.equipment_id === 'PIRANHA-01') return 'Piranha Laser';
-    if (eq.equipment_id === 'PYTHON-BL-01') return 'Python Beam Line';
-    if (eq.equipment_id === 'PYTHON-PT-01') return 'Python Plasma';
-    if (eq.equipment_id === 'PRESS-01') return 'Press Brake 350T';
-    if (eq.equipment_id === 'ROUNDO-01') return 'Roundo Plate Roller';
-    return eq.equipment_id;
+function getEquipmentDisplay(equipType) {
+    if (KNOWN_DISPLAY[equipType]) return KNOWN_DISPLAY[equipType];
+    // Smart fallback for unknown types — derive from type string
+    const label = equipType.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+    // Try to pick a reasonable icon based on keywords
+    const t = equipType.toLowerCase();
+    if (t.includes('telehandler') || t.includes('forklift') || t.includes('crane') || t.includes('lift')) return { icon: '🏗️', label };
+    if (t.includes('weld')) return { icon: '🔥', label };
+    if (t.includes('laser') || t.includes('cut')) return { icon: '🔆', label };
+    if (t.includes('plasma')) return { icon: '⚡', label };
+    if (t.includes('press') || t.includes('brake')) return { icon: '🔧', label };
+    if (t.includes('roll')) return { icon: '🔄', label };
+    if (t.includes('drill') || t.includes('saw')) return { icon: '⚙️', label };
+    return { icon: '📦', label };
 }
 
 // =============================================================================
-// CHECKLIST DATA - TELEHANDLERS (shared by all 4 telehandlers)
+// DYNAMIC EQUIPMENT NICKNAME — derives from the actual equipment data
+// =============================================================================
+function getEquipmentNickname(eq) {
+    if (!eq) return '';
+    // Prettify equipment_id: replace dashes with spaces, capitalize
+    const id = eq.equipment_id || '';
+    // If the ID already looks like a name (e.g. "Yellow Cat"), use it directly
+    if (id && !id.includes('-')) return id;
+    // Otherwise turn "BIG-RED-01" into "BIG RED" (drop trailing numbers)
+    const parts = id.split('-');
+    // Remove last part if it's purely numeric (like "01")
+    if (parts.length > 1 && /^\d+$/.test(parts[parts.length - 1])) parts.pop();
+    const nickname = parts.join(' ');
+    // If we got a good nickname, use it; otherwise fall back to make + model
+    if (nickname && nickname.length > 1) return nickname;
+    return `${eq.make || ''} ${eq.model || ''}`.trim() || id;
+}
+
+// =============================================================================
+// CHECKLIST DATA - TELEHANDLERS (shared by all telehandler types)
 // =============================================================================
 const TELEHANDLER_CHECKLISTS = {
     daily: {
@@ -810,7 +817,7 @@ const PYTHON_BEAM_LINE_CHECKLISTS = {
                 'Gas lines/fittings — no leaks, secure',
                 'Arc voltage/pierce height — calibrated',
             ]},
-            { name: 'INFEED CONVEYOR SYSTEM — 100\'', items: [
+            { name: "INFEED CONVEYOR SYSTEM — 100'", items: [
                 'All conveyor rollers — turning freely',
                 'Conveyor drive — operational, no noise',
                 'Conveyor surface — clear of debris/scrap',
@@ -839,7 +846,7 @@ const PYTHON_BEAM_LINE_CHECKLISTS = {
                 'Torch height control — responsive',
                 'Home/reference position — accurate',
             ]},
-            { name: 'OUTFEED CONVEYOR — 40\'', items: [
+            { name: "OUTFEED CONVEYOR — 40'", items: [
                 'All conveyor rollers — turning freely',
                 'Conveyor drive — operational',
                 'Outfeed area — clear for finished material',
@@ -1417,18 +1424,111 @@ const PLATE_ROLLER_CHECKLISTS = {
     }
 };
 
-// Map equipment types to their checklist data
+// =============================================================================
+// GENERIC CHECKLIST — for equipment types without a specific checklist
+// =============================================================================
+const GENERIC_CHECKLISTS = {
+    daily: {
+        title: 'Daily Equipment Inspection',
+        warning: 'INSPECT ALL SAFETY SYSTEMS BEFORE OPERATION',
+        sections: [
+            { name: 'GENERAL CONDITION', items: [
+                'Overall visual condition — no obvious damage',
+                'All guards and covers — in place, secure',
+                'Area around equipment — clean, clear',
+                'Power supply — connected, adequate',
+                'No fluid leaks visible',
+            ]},
+            { name: 'SAFETY SYSTEMS', items: [
+                'E-stop(s) — all functional (test each)',
+                'Warning lights/indicators — functional',
+                'Safety guards — in place, secure',
+                'Fire extinguisher — nearby, charged',
+            ]},
+            { name: 'OPERATIONAL CHECK', items: [
+                'Power on — no error codes or alarms',
+                'Controls — responsive, correct operation',
+                'Moving parts — smooth operation, no unusual noise',
+                'Cooling/ventilation — adequate',
+            ]},
+        ]
+    },
+    weekly: {
+        title: 'Weekly Equipment Inspection',
+        sections: [
+            { name: 'DETAILED MECHANICAL', items: [
+                'All moving components — wear, play, condition',
+                'Bearings — noise, temperature, play',
+                'Drive systems — belts, chains, gears condition',
+                'Lubrication points — all greased/oiled',
+                'Fasteners — check for looseness',
+            ]},
+            { name: 'ELECTRICAL & SAFETY', items: [
+                'Electrical connections — tight, no corrosion',
+                'Cables/wiring — condition, routing',
+                'All safety systems — comprehensive test',
+                'Warning labels — present, legible',
+            ]},
+        ]
+    },
+    monthly: {
+        title: 'Monthly Equipment Inspection',
+        sections: [
+            { name: 'COMPREHENSIVE REVIEW', items: [
+                'Full structural inspection — cracks, welds, damage',
+                'All bearings — full inspection, replace if needed',
+                'All drive components — comprehensive inspection',
+                'All electrical connections — torque check',
+                'All safety circuits — comprehensive test',
+                'Calibration — verify accuracy',
+                'Performance test — verify operation to spec',
+            ]},
+        ]
+    }
+};
+
+// =============================================================================
+// CHECKLIST MAPPING — maps equipment_type to the right checklist
+// Falls back to generic for unknown types
+// =============================================================================
 function getChecklistForEquipment(equipmentType) {
-    if (equipmentType === 'telehandler_33k' || equipmentType === 'telehandler_12k') return TELEHANDLER_CHECKLISTS;
-    if (equipmentType === 'emi_tube_cutter') return EMI_TUBE_CUTTER_CHECKLISTS;
-    if (equipmentType === 'miller_welder') return MILLER_WELDER_CHECKLISTS;
-    if (equipmentType === 'piranha_laser') return PIRANHA_LASER_CHECKLISTS;
-    if (equipmentType === 'python_beam_line') return PYTHON_BEAM_LINE_CHECKLISTS;
-    if (equipmentType === 'python_plasma') return PYTHON_PLASMA_CHECKLISTS;
-    if (equipmentType === 'press_brake') return PRESS_BRAKE_CHECKLISTS;
-    if (equipmentType === 'plate_roller') return PLATE_ROLLER_CHECKLISTS;
-    return TELEHANDLER_CHECKLISTS;
+    const t = (equipmentType || '').toLowerCase();
+    // Exact matches first
+    if (t === 'telehandler_33k' || t === 'telehandler_12k') return TELEHANDLER_CHECKLISTS;
+    if (t === 'emi_tube_cutter') return EMI_TUBE_CUTTER_CHECKLISTS;
+    if (t === 'miller_welder') return MILLER_WELDER_CHECKLISTS;
+    if (t === 'piranha_laser') return PIRANHA_LASER_CHECKLISTS;
+    if (t === 'python_beam_line') return PYTHON_BEAM_LINE_CHECKLISTS;
+    if (t === 'python_plasma') return PYTHON_PLASMA_CHECKLISTS;
+    if (t === 'press_brake') return PRESS_BRAKE_CHECKLISTS;
+    if (t === 'plate_roller') return PLATE_ROLLER_CHECKLISTS;
+    // Keyword-based fallback for new types that are similar to existing ones
+    if (t.includes('telehandler') || t.includes('forklift') || t.includes('crane') || t.includes('lift')) return TELEHANDLER_CHECKLISTS;
+    if (t.includes('weld') || t.includes('mig') || t.includes('tig')) return MILLER_WELDER_CHECKLISTS;
+    if (t.includes('laser')) return PIRANHA_LASER_CHECKLISTS;
+    if (t.includes('plasma') && t.includes('table')) return PYTHON_PLASMA_CHECKLISTS;
+    if (t.includes('plasma')) return PYTHON_PLASMA_CHECKLISTS;
+    if (t.includes('beam') || t.includes('conveyor')) return PYTHON_BEAM_LINE_CHECKLISTS;
+    if (t.includes('press') || t.includes('brake')) return PRESS_BRAKE_CHECKLISTS;
+    if (t.includes('roll')) return PLATE_ROLLER_CHECKLISTS;
+    if (t.includes('cut') || t.includes('saw') || t.includes('tube')) return EMI_TUBE_CUTTER_CHECKLISTS;
+    // Complete fallback — generic checklist
+    return GENERIC_CHECKLISTS;
 }
+
+// All known equipment types for the "Add Equipment" dropdown
+const EQUIPMENT_TYPE_OPTIONS = [
+    { value: 'telehandler_33k', label: 'Telehandler 33K', category: 'field' },
+    { value: 'telehandler_12k', label: 'Telehandler 12K', category: 'field' },
+    { value: 'piranha_laser', label: 'Piranha 6kW Fiber Laser', category: 'shop' },
+    { value: 'python_beam_line', label: 'Python X Beam Line', category: 'shop' },
+    { value: 'python_plasma', label: 'Python X Plasma Table', category: 'shop' },
+    { value: 'emi_tube_cutter', label: 'EMI Tube Cutter', category: 'shop' },
+    { value: 'miller_welder', label: 'Miller Welder', category: 'shop' },
+    { value: 'press_brake', label: 'Press Brake', category: 'shop' },
+    { value: 'plate_roller', label: 'Plate Roller', category: 'shop' },
+    { value: 'generic', label: 'Other / Generic', category: 'shop' },
+];
 
 // =============================================================================
 // MAIN APP COMPONENT
@@ -1455,21 +1555,10 @@ function App() {
         }
     };
 
-    const seedEquipment = async () => {
-        try {
-            const existing = await loadEquipment();
-            if (existing.length === 0) {
-                for (const eq of EQUIPMENT_SEED) {
-                    try { await API.post('/equipment', eq); } catch (e) { console.log('Seed skip:', eq.equipment_id); }
-                }
-                await loadEquipment();
-                notify('Equipment seeded successfully');
-            }
-        } catch (e) { console.error('Seed failed:', e); }
-        setLoading(false);
-    };
-
-    useEffect(() => { seedEquipment(); }, []);
+    // Just load equipment from API — no more seeding from frontend
+    useEffect(() => {
+        loadEquipment().finally(() => setLoading(false));
+    }, []);
 
     if (loading) return (
         <div className="min-h-screen flex items-center justify-center">
@@ -1559,24 +1648,27 @@ function DashboardPage({ equipment }) {
             <div className="bg-white rounded-xl shadow-sm border p-6">
                 <h3 className="text-lg font-bold text-sse-navy mb-4">Equipment Status</h3>
                 <div className="space-y-2">
-                    {(stats?.equipment_status || []).map((eq, i) => (
-                        <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center gap-3">
-                                <span className="text-xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
-                                <div>
-                                    <p className="font-medium">{getEquipmentNickname(eq)} <span className="text-gray-400 text-sm">({eq.equipment_id})</span></p>
-                                    <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                    {(stats?.equipment_status || []).map((eq, i) => {
+                        const display = getEquipmentDisplay(eq.equipment_type);
+                        return (
+                            <div key={i} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-xl">{display.icon}</span>
+                                    <div>
+                                        <p className="font-medium">{getEquipmentNickname(eq)} <span className="text-gray-400 text-sm">({eq.equipment_id})</span></p>
+                                        <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                                    </div>
+                                </div>
+                                <div className="text-right">
+                                    {eq.last_inspection ? (
+                                        <span className="text-sm text-green-600 font-medium">Last: {eq.last_inspection}</span>
+                                    ) : (
+                                        <span className="text-sm text-red-500 font-medium">No inspections yet</span>
+                                    )}
                                 </div>
                             </div>
-                            <div className="text-right">
-                                {eq.last_inspection ? (
-                                    <span className="text-sm text-green-600 font-medium">Last: {eq.last_inspection}</span>
-                                ) : (
-                                    <span className="text-sm text-red-500 font-medium">No inspections yet</span>
-                                )}
-                            </div>
-                        </div>
-                    ))}
+                        );
+                    })}
                     {(!stats?.equipment_status || stats.equipment_status.length === 0) && (
                         <p className="text-gray-500 text-center py-4">No equipment found. Add equipment first.</p>
                     )}
@@ -1714,19 +1806,22 @@ function NewInspectionPage({ equipment, notify, setPage }) {
                     <div>
                         <h3 className="text-lg font-semibold text-gray-700 mb-3">🏗️ Field Equipment</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {fieldEquip.map(eq => (
-                                <button key={eq.id} onClick={() => { setSelectedEquip(eq); setStep(2); }}
-                                    className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-4 text-left transition-all hover:shadow-md">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-3xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
-                                        <div>
-                                            <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
-                                            <p className="text-sm text-gray-500">{eq.make} {eq.model} — {eq.capacity}</p>
-                                            <p className="text-xs text-gray-400">{eq.equipment_id}</p>
+                            {fieldEquip.map(eq => {
+                                const display = getEquipmentDisplay(eq.equipment_type);
+                                return (
+                                    <button key={eq.id} onClick={() => { setSelectedEquip(eq); setStep(2); }}
+                                        className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-4 text-left transition-all hover:shadow-md">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-3xl">{display.icon}</span>
+                                            <div>
+                                                <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
+                                                <p className="text-sm text-gray-500">{eq.make} {eq.model} — {eq.capacity}</p>
+                                                <p className="text-xs text-gray-400">{eq.equipment_id}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -1735,19 +1830,22 @@ function NewInspectionPage({ equipment, notify, setPage }) {
                     <div>
                         <h3 className="text-lg font-semibold text-gray-700 mb-3">⚙️ Shop Equipment</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                            {shopEquip.map(eq => (
-                                <button key={eq.id} onClick={() => { setSelectedEquip(eq); setStep(2); }}
-                                    className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-4 text-left transition-all hover:shadow-md">
-                                    <div className="flex items-center gap-3">
-                                        <span className="text-3xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
-                                        <div>
-                                            <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
-                                            <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
-                                            <p className="text-xs text-gray-400">{eq.equipment_id}</p>
+                            {shopEquip.map(eq => {
+                                const display = getEquipmentDisplay(eq.equipment_type);
+                                return (
+                                    <button key={eq.id} onClick={() => { setSelectedEquip(eq); setStep(2); }}
+                                        className="bg-white rounded-xl border-2 border-gray-200 hover:border-sse-orange p-4 text-left transition-all hover:shadow-md">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-3xl">{display.icon}</span>
+                                            <div>
+                                                <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
+                                                <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                                                <p className="text-xs text-gray-400">{eq.equipment_id}</p>
+                                            </div>
                                         </div>
-                                    </div>
-                                </button>
-                            ))}
+                                    </button>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -2155,11 +2253,17 @@ function WorkTicketsPage({ notify }) {
 }
 
 // =============================================================================
-// EQUIPMENT PAGE
+// EQUIPMENT PAGE — Dynamic with all known types in dropdown
 // =============================================================================
 function EquipmentPage({ equipment, reload, notify }) {
     const [showAdd, setShowAdd] = useState(false);
     const [form, setForm] = useState({ equipment_id: '', equipment_type: 'telehandler_12k', category: 'field', make: '', model: '', serial_number: '', capacity: '' });
+
+    // Auto-set category when equipment type changes
+    const handleTypeChange = (newType) => {
+        const typeInfo = EQUIPMENT_TYPE_OPTIONS.find(t => t.value === newType);
+        setForm({ ...form, equipment_type: newType, category: typeInfo?.category || 'shop' });
+    };
 
     const addEquipment = async () => {
         if (!form.equipment_id.trim()) { notify('Equipment ID required', 'error'); return; }
@@ -2198,20 +2302,17 @@ function EquipmentPage({ equipment, reload, notify }) {
                         <input type="text" placeholder="Equipment ID (e.g. CRANE-01)" value={form.equipment_id}
                             onChange={e => setForm({ ...form, equipment_id: e.target.value })}
                             className="border rounded-lg px-3 py-2 text-sm" />
-                        <select value={form.equipment_type} onChange={e => setForm({ ...form, equipment_type: e.target.value })}
+                        <select value={form.equipment_type} onChange={e => handleTypeChange(e.target.value)}
                             className="border rounded-lg px-3 py-2 text-sm">
                             <optgroup label="Field Equipment">
-                                <option value="telehandler_33k">Telehandler 33K</option>
-                                <option value="telehandler_12k">Telehandler 12K</option>
+                                {EQUIPMENT_TYPE_OPTIONS.filter(t => t.category === 'field').map(t => (
+                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
                             </optgroup>
                             <optgroup label="Shop Equipment">
-                                <option value="piranha_laser">Piranha 6kW Fiber Laser</option>
-                                <option value="python_beam_line">Python X Beam Line</option>
-                                <option value="python_plasma">Python X Plasma Table</option>
-                                <option value="emi_tube_cutter">EMI Tube Cutter</option>
-                                <option value="miller_welder">Miller Welder</option>
-                                <option value="press_brake">Press Brake</option>
-                                <option value="plate_roller">Plate Roller</option>
+                                {EQUIPMENT_TYPE_OPTIONS.filter(t => t.category === 'shop').map(t => (
+                                    <option key={t.value} value={t.value}>{t.label}</option>
+                                ))}
                             </optgroup>
                         </select>
                         <select value={form.category} onChange={e => setForm({ ...form, category: e.target.value })}
@@ -2237,22 +2338,25 @@ function EquipmentPage({ equipment, reload, notify }) {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {equipment.map(eq => (
-                    <div key={eq.id} className="bg-white rounded-xl border p-4">
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="text-3xl">{EQUIPMENT_DISPLAY[eq.equipment_type]?.icon || '📦'}</span>
-                                <div>
-                                    <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
-                                    <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
-                                    <p className="text-xs text-gray-400">ID: {eq.equipment_id} {eq.serial_number ? `| S/N: ${eq.serial_number}` : ''}</p>
-                                    <p className="text-xs text-gray-400">Category: {eq.category} {eq.capacity ? `| ${eq.capacity}` : ''}</p>
+                {equipment.map(eq => {
+                    const display = getEquipmentDisplay(eq.equipment_type);
+                    return (
+                        <div key={eq.id} className="bg-white rounded-xl border p-4">
+                            <div className="flex items-start justify-between">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">{display.icon}</span>
+                                    <div>
+                                        <p className="font-bold text-lg">{getEquipmentNickname(eq)}</p>
+                                        <p className="text-sm text-gray-500">{eq.make} {eq.model}</p>
+                                        <p className="text-xs text-gray-400">ID: {eq.equipment_id} {eq.serial_number ? `| S/N: ${eq.serial_number}` : ''}</p>
+                                        <p className="text-xs text-gray-400">Category: {eq.category} {eq.capacity ? `| ${eq.capacity}` : ''}</p>
+                                    </div>
                                 </div>
+                                <button onClick={() => deactivate(eq.id)} className="text-red-400 hover:text-red-600 text-sm">Deactivate</button>
                             </div>
-                            <button onClick={() => deactivate(eq.id)} className="text-red-400 hover:text-red-600 text-sm">Deactivate</button>
                         </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
