@@ -198,6 +198,18 @@ app.add_middleware(
 
 STATIC_DIR = Path(__file__).parent / "static"
 
+# =============================================================================
+# CALIBRATION MODULE - Import and include the calibration router
+# =============================================================================
+from app.api.calibration import router as calibration_router
+app.include_router(calibration_router)
+
+# =============================================================================
+# WELDING ROSTER MODULE - Import and include the welding router
+# =============================================================================
+from app.api.welding_roster import router as welding_router
+app.include_router(welding_router)
+
 
 # =============================================================================
 # Pydantic Models
@@ -236,7 +248,7 @@ class InspectionCreate(BaseModel):
     hour_meter_reading: Optional[int] = None
     overall_status: str  # safe, needs_repair, out_of_service
     general_comments: Optional[str] = None
-    items: List[InspectionItemCreate]
+    items: List[InspectionItemCreate] = []
 
 class WorkTicketCreate(BaseModel):
     equipment_id: int
@@ -249,6 +261,7 @@ class WorkTicketCreate(BaseModel):
 class WorkTicketUpdate(BaseModel):
     status: Optional[str] = None
     assigned_to: Optional[str] = None
+    priority: Optional[str] = None
     completed_by: Optional[str] = None
 
 
@@ -257,57 +270,27 @@ class WorkTicketUpdate(BaseModel):
 # =============================================================================
 
 @app.get("/api/equipment")
-async def get_equipment(category: Optional[str] = None, active_only: bool = True):
+async def get_equipment(category: Optional[str] = None):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    if USE_POSTGRES:
-        if category:
-            cursor.execute(
-                "SELECT * FROM equipment WHERE category = %s AND (is_active = TRUE OR %s = FALSE) ORDER BY equipment_id",
-                (category, active_only)
-            )
+    if category and category != 'all':
+        if USE_POSTGRES:
+            cursor.execute("SELECT * FROM equipment WHERE category = %s AND is_active = TRUE ORDER BY equipment_id", (category,))
         else:
-            cursor.execute(
-                "SELECT * FROM equipment WHERE (is_active = TRUE OR %s = FALSE) ORDER BY equipment_id",
-                (active_only,)
-            )
+            cursor.execute("SELECT * FROM equipment WHERE category = ? AND is_active = 1 ORDER BY equipment_id", (category,))
     else:
-        if category:
-            cursor.execute(
-                "SELECT * FROM equipment WHERE category = ? AND (is_active = 1 OR ? = 0) ORDER BY equipment_id",
-                (category, 1 if active_only else 0)
-            )
+        if USE_POSTGRES:
+            cursor.execute("SELECT * FROM equipment WHERE is_active = TRUE ORDER BY equipment_id")
         else:
-            cursor.execute(
-                "SELECT * FROM equipment WHERE (is_active = 1 OR ? = 0) ORDER BY equipment_id",
-                (1 if active_only else 0,)
-            )
+            cursor.execute("SELECT * FROM equipment WHERE is_active = 1 ORDER BY equipment_id")
     
     equipment = [dict(row) for row in cursor.fetchall()]
     conn.close()
     return equipment
 
-@app.get("/api/equipment/{equipment_id}")
-async def get_equipment_by_id(equipment_id: int):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    if USE_POSTGRES:
-        cursor.execute("SELECT * FROM equipment WHERE id = %s", (equipment_id,))
-    else:
-        cursor.execute("SELECT * FROM equipment WHERE id = ?", (equipment_id,))
-    
-    equipment = cursor.fetchone()
-    conn.close()
-    
-    if not equipment:
-        raise HTTPException(status_code=404, detail="Equipment not found")
-    
-    return dict(equipment)
-
 @app.post("/api/equipment")
-async def create_equipment(equipment: EquipmentCreate):
+async def create_equipment(equip: EquipmentCreate):
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -316,17 +299,17 @@ async def create_equipment(equipment: EquipmentCreate):
             cursor.execute("""
                 INSERT INTO equipment (equipment_id, equipment_type, category, make, model, serial_number, capacity)
                 VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
-            """, (equipment.equipment_id, equipment.equipment_type, equipment.category,
-                  equipment.make, equipment.model, equipment.serial_number, equipment.capacity))
+            """, (equip.equipment_id, equip.equipment_type, equip.category,
+                  equip.make, equip.model, equip.serial_number, equip.capacity))
             result = cursor.fetchone()
-            eq_id = result['id']
+            equip_id = result['id']
         else:
             cursor.execute("""
                 INSERT INTO equipment (equipment_id, equipment_type, category, make, model, serial_number, capacity)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (equipment.equipment_id, equipment.equipment_type, equipment.category,
-                  equipment.make, equipment.model, equipment.serial_number, equipment.capacity))
-            eq_id = cursor.lastrowid
+            """, (equip.equipment_id, equip.equipment_type, equip.category,
+                  equip.make, equip.model, equip.serial_number, equip.capacity))
+            equip_id = cursor.lastrowid
         
         conn.commit()
     except Exception as e:
@@ -335,41 +318,104 @@ async def create_equipment(equipment: EquipmentCreate):
     finally:
         conn.close()
     
-    return {"id": eq_id, "message": "Equipment created"}
+    return {"id": equip_id, "message": "Equipment created"}
 
-@app.put("/api/equipment/{equipment_id}")
-async def update_equipment(equipment_id: int, updates: EquipmentUpdate):
+@app.put("/api/equipment/{equip_id}")
+async def update_equipment(equip_id: int, updates: EquipmentUpdate):
     conn = get_db_connection()
     cursor = conn.cursor()
     
     update_fields = {k: v for k, v in updates.dict().items() if v is not None}
-    if not update_fields:
-        raise HTTPException(status_code=400, detail="No fields to update")
     
     for field, value in update_fields.items():
         if USE_POSTGRES:
-            cursor.execute(f"UPDATE equipment SET {field} = %s WHERE id = %s", (value, equipment_id))
+            cursor.execute(f"UPDATE equipment SET {field} = %s WHERE id = %s", (value, equip_id))
         else:
-            cursor.execute(f"UPDATE equipment SET {field} = ? WHERE id = ?", (value, equipment_id))
+            cursor.execute(f"UPDATE equipment SET {field} = ? WHERE id = ?", (value, equip_id))
     
     conn.commit()
     conn.close()
     return {"message": "Equipment updated"}
 
-@app.delete("/api/equipment/{equipment_id}")
-async def delete_equipment(equipment_id: int):
+@app.delete("/api/equipment/{equip_id}")
+async def delete_equipment(equip_id: int):
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Soft delete - just mark as inactive
     if USE_POSTGRES:
-        cursor.execute("UPDATE equipment SET is_active = FALSE WHERE id = %s", (equipment_id,))
+        cursor.execute("UPDATE equipment SET is_active = FALSE WHERE id = %s", (equip_id,))
     else:
-        cursor.execute("UPDATE equipment SET is_active = 0 WHERE id = ?", (equipment_id,))
+        cursor.execute("UPDATE equipment SET is_active = 0 WHERE id = ?", (equip_id,))
     
     conn.commit()
     conn.close()
     return {"message": "Equipment deactivated"}
+
+
+@app.post("/api/equipment/seed")
+async def seed_equipment():
+    """One-time seed of SSE equipment inventory."""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Check if already seeded
+    if USE_POSTGRES:
+        cursor.execute("SELECT COUNT(*) as cnt FROM equipment WHERE is_active = TRUE")
+    else:
+        cursor.execute("SELECT COUNT(*) as cnt FROM equipment WHERE is_active = 1")
+    
+    row = dict(cursor.fetchone())
+    count = row.get("cnt", 0)
+    
+    if count > 0:
+        conn.close()
+        return {"message": f"Database already has {count} equipment records. Seed skipped.", "seeded": False}
+    
+    # SSE Equipment Inventory - 12 pieces
+    # (equipment_id, equipment_type, category, make, model, serial_number, capacity)
+    seed_data = [
+        # Field Equipment - all share telehandler checklists
+        ("BIG-RED", "telehandler", "field", "Taylor", "33K Forklift", None, "33,000 lbs"),
+        ("BLUE-GENIE", "telehandler", "field", "Genie", "Telehandler", None, None),
+        ("GREEN-JLG", "telehandler", "field", "JLG", "Telehandler", None, None),
+        ("ORANGE-GENIE", "telehandler", "field", "Genie", "Telehandler", None, None),
+        ("CAT-12K", "telehandler", "field", "Caterpillar", "12K Telehandler", None, "12,000 lbs"),
+        # Shop Equipment - CNC Machines
+        ("PIRANHA-01", "piranha-laser", "shop", "Piranha", "6kW Fiber Laser (IPG source, dual pallet shuttle, chiller, assist gas, gantry, dust collector)", None, "6kW"),
+        ("PYTHON-BL-01", "python-beam", "shop", "Python X", "Beam Line (300A Hypertherm, 100ft infeed w/ 4 cross transfers, 40ft outfeed, hydraulic clamping)", None, None),
+        ("PYTHON-PT-01", "python-plasma", "shop", "Python X", "Plasma Table 10x25 (300A Hypertherm, articulating bevel head, THC, fume extraction)", None, None),
+        ("EMI-TC-01", "emi-cutting", "shop", "EMI", "TPC2464 Tube Cutter", None, None),
+        # Shop Equipment - Fabrication
+        ("MILLER-01", "welder", "shop", "Miller", "Millermatic 350P MIG Welder", None, None),
+        ("PRESS-01", "press-brake", "shop", "Standard", "350T Hydraulic Press Brake (CNC back gauge, hydraulic clamping, light curtains)", None, "350 Ton"),
+        ("ROUNDO-01", "plate-roller", "shop", "Roundo", "Plate Roller (hydraulic top roll, 3-roll config, drop end mechanism)", None, None),
+    ]
+    
+    inserted = 0
+    for (eid, etype, cat, make, model, sn, cap) in seed_data:
+        try:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    INSERT INTO equipment (equipment_id, equipment_type, category, make, model, serial_number, capacity)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
+                """, (eid, etype, cat, make, model, sn, cap))
+            else:
+                cursor.execute("""
+                    INSERT INTO equipment (equipment_id, equipment_type, category, make, model, serial_number, capacity)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (eid, etype, cat, make, model, sn, cap))
+            inserted += 1
+        except Exception as e:
+            print(f"Seed error for {eid}: {e}")
+    
+    conn.commit()
+    conn.close()
+    
+    return {
+        "message": f"Seeded {inserted} equipment records for SSE",
+        "seeded": True,
+        "count": inserted
+    }
 
 
 # =============================================================================
@@ -377,11 +423,7 @@ async def delete_equipment(equipment_id: int):
 # =============================================================================
 
 @app.get("/api/inspections")
-async def get_inspections(
-    equipment_id: Optional[int] = None,
-    inspection_type: Optional[str] = None,
-    limit: int = 50
-):
+async def get_inspections(equipment_id: Optional[int] = None, inspection_type: Optional[str] = None):
     conn = get_db_connection()
     cursor = conn.cursor()
     
@@ -402,12 +444,97 @@ async def get_inspections(
         params.append(inspection_type)
     
     query += " ORDER BY i.inspection_date DESC, i.created_at DESC"
-    query += f" LIMIT {limit}"
     
     cursor.execute(query, params)
     inspections = [dict(row) for row in cursor.fetchall()]
+    
+    # Get items for each inspection
+    for insp in inspections:
+        if USE_POSTGRES:
+            cursor.execute("SELECT * FROM inspection_items WHERE inspection_id = %s", (insp['id'],))
+        else:
+            cursor.execute("SELECT * FROM inspection_items WHERE inspection_id = ?", (insp['id'],))
+        insp['items'] = [dict(item) for item in cursor.fetchall()]
+    
     conn.close()
     return inspections
+
+@app.post("/api/inspections")
+async def create_inspection(inspection: InspectionCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    try:
+        if USE_POSTGRES:
+            cursor.execute("""
+                INSERT INTO inspections (equipment_id, inspection_type, inspection_date, inspector_name, 
+                    hour_meter_reading, overall_status, general_comments)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
+            """, (inspection.equipment_id, inspection.inspection_type, inspection.inspection_date,
+                  inspection.inspector_name, inspection.hour_meter_reading,
+                  inspection.overall_status, inspection.general_comments))
+            result = cursor.fetchone()
+            inspection_id = result['id']
+        else:
+            cursor.execute("""
+                INSERT INTO inspections (equipment_id, inspection_type, inspection_date, inspector_name, 
+                    hour_meter_reading, overall_status, general_comments)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (inspection.equipment_id, inspection.inspection_type, inspection.inspection_date,
+                  inspection.inspector_name, inspection.hour_meter_reading,
+                  inspection.overall_status, inspection.general_comments))
+            inspection_id = cursor.lastrowid
+        
+        # Save inspection items
+        for item in inspection.items:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    INSERT INTO inspection_items (inspection_id, category, item_name, status, comments)
+                    VALUES (%s, %s, %s, %s, %s)
+                """, (inspection_id, item.category, item.item_name, item.status, item.comments))
+            else:
+                cursor.execute("""
+                    INSERT INTO inspection_items (inspection_id, category, item_name, status, comments)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (inspection_id, item.category, item.item_name, item.status, item.comments))
+        
+        # Auto-create work tickets for items needing attention
+        work_ticket_ids = []
+        for item in inspection.items:
+            if item.status == 'needs_attention':
+                if USE_POSTGRES:
+                    cursor.execute("""
+                        INSERT INTO work_tickets (equipment_id, inspection_id, title, description, priority)
+                        VALUES (%s, %s, %s, %s, %s) RETURNING id
+                    """, (inspection.equipment_id, inspection_id,
+                          f"{item.item_name} - Needs Attention",
+                          item.comments or f"Found during {inspection.inspection_type} inspection",
+                          'high' if inspection.overall_status == 'out_of_service' else 'normal'))
+                    result = cursor.fetchone()
+                    work_ticket_ids.append(result['id'])
+                else:
+                    cursor.execute("""
+                        INSERT INTO work_tickets (equipment_id, inspection_id, title, description, priority)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (inspection.equipment_id, inspection_id,
+                          f"{item.item_name} - Needs Attention",
+                          item.comments or f"Found during {inspection.inspection_type} inspection",
+                          'high' if inspection.overall_status == 'out_of_service' else 'normal'))
+                    work_ticket_ids.append(cursor.lastrowid)
+        
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+    
+    return {
+        "id": inspection_id,
+        "message": "Inspection created",
+        "work_tickets_created": len(work_ticket_ids),
+        "work_ticket_ids": work_ticket_ids
+    }
 
 @app.get("/api/inspections/{inspection_id}")
 async def get_inspection(inspection_id: int):
@@ -429,99 +556,22 @@ async def get_inspection(inspection_id: int):
             WHERE i.id = ?
         """, (inspection_id,))
     
-    inspection = cursor.fetchone()
-    if not inspection:
+    row = cursor.fetchone()
+    if not row:
         conn.close()
         raise HTTPException(status_code=404, detail="Inspection not found")
     
-    inspection = dict(inspection)
+    inspection = dict(row)
     
-    # Get items
     if USE_POSTGRES:
         cursor.execute("SELECT * FROM inspection_items WHERE inspection_id = %s ORDER BY id", (inspection_id,))
     else:
         cursor.execute("SELECT * FROM inspection_items WHERE inspection_id = ? ORDER BY id", (inspection_id,))
     
-    inspection['items'] = [dict(row) for row in cursor.fetchall()]
+    inspection['items'] = [dict(item) for item in cursor.fetchall()]
     conn.close()
     return inspection
 
-@app.post("/api/inspections")
-async def create_inspection(inspection: InspectionCreate):
-    conn = get_db_connection()
-    cursor = conn.cursor()
-    
-    try:
-        if USE_POSTGRES:
-            cursor.execute("""
-                INSERT INTO inspections (equipment_id, inspection_type, inspection_date, inspector_name,
-                    hour_meter_reading, overall_status, general_comments)
-                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id
-            """, (inspection.equipment_id, inspection.inspection_type, inspection.inspection_date,
-                  inspection.inspector_name, inspection.hour_meter_reading, inspection.overall_status,
-                  inspection.general_comments))
-            result = cursor.fetchone()
-            inspection_id = result['id']
-        else:
-            cursor.execute("""
-                INSERT INTO inspections (equipment_id, inspection_type, inspection_date, inspector_name,
-                    hour_meter_reading, overall_status, general_comments)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (inspection.equipment_id, inspection.inspection_type, inspection.inspection_date,
-                  inspection.inspector_name, inspection.hour_meter_reading, inspection.overall_status,
-                  inspection.general_comments))
-            inspection_id = cursor.lastrowid
-        
-        # Insert items
-        for item in inspection.items:
-            if USE_POSTGRES:
-                cursor.execute("""
-                    INSERT INTO inspection_items (inspection_id, category, item_name, status, comments)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (inspection_id, item.category, item.item_name, item.status, item.comments))
-            else:
-                cursor.execute("""
-                    INSERT INTO inspection_items (inspection_id, category, item_name, status, comments)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (inspection_id, item.category, item.item_name, item.status, item.comments))
-        
-        # Auto-create work tickets for failed items
-        failed_items = [item for item in inspection.items if item.status == 'needs_attention']
-        work_ticket_ids = []
-        
-        for item in failed_items:
-            title = f"{item.item_name} - Needs Attention"
-            description = item.comments or f"Item failed during {inspection.inspection_type} inspection"
-            
-            if USE_POSTGRES:
-                cursor.execute("""
-                    INSERT INTO work_tickets (equipment_id, inspection_id, title, description, priority)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id
-                """, (inspection.equipment_id, inspection_id, title, description, 
-                      'high' if inspection.overall_status == 'out_of_service' else 'normal'))
-                result = cursor.fetchone()
-                work_ticket_ids.append(result['id'])
-            else:
-                cursor.execute("""
-                    INSERT INTO work_tickets (equipment_id, inspection_id, title, description, priority)
-                    VALUES (?, ?, ?, ?, ?)
-                """, (inspection.equipment_id, inspection_id, title, description,
-                      'high' if inspection.overall_status == 'out_of_service' else 'normal'))
-                work_ticket_ids.append(cursor.lastrowid)
-        
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
-    
-    return {
-        "id": inspection_id,
-        "message": "Inspection created",
-        "work_tickets_created": len(work_ticket_ids),
-        "work_ticket_ids": work_ticket_ids
-    }
 
 @app.delete("/api/inspections/{inspection_id}")
 async def delete_inspection(inspection_id: int):
