@@ -1121,9 +1121,12 @@ def seed_calibration_v2():
     conn.commit()
     
     # ── Step 2: Wipe existing data ──
-    cur.execute("DELETE FROM calibration_certificates")
-    cur.execute("DELETE FROM calibration_records")
-    cur.execute("DELETE FROM calibration_instruments")
+    for tbl in ["calibration_certificates", "calibration_records", "calibration_instruments"]:
+        try:
+            cur.execute(f"DELETE FROM {tbl}")
+            conn.commit()
+        except Exception:
+            conn.rollback()
     try:
         cur.execute("DELETE FROM calibration_oot_log")
     except Exception:
