@@ -1,18 +1,12 @@
 """
 SSE Welding Roster & Continuity Tracking Module
-Tracks welder qualifications per AWS D1.1/D1.4/D1.5
-6-month continuity window: welders must use each qualified process 
-within 6 months or qualification lapses.
-
-Add this file to: backend/app/api/welding_roster.py
-Then import and include in your main.py
+Updated: March 6, 2026 from Continuity_Logs3-6-26.pdf
+56 qualification records
 """
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
-from fastapi.responses import Response
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import date, datetime, timedelta
-from enum import Enum
 import os
 import json
 import base64
@@ -25,12 +19,12 @@ router = APIRouter(prefix="/api/welding", tags=["welding"])
 
 class QualificationCreate(BaseModel):
     welder_name: str
-    aws_code: str = "AWS D1.1"       # AWS D1.1, AWS D1.4, AWS D1.5
-    qualification_type: str = "WQTR"  # WQTR = Welder Qualification Test Record
-    procedure_id: str                 # e.g., "SSE AWS-D1.4-FC-001 WPS"
-    creation_date: str                # When originally qualified
-    last_welded_on: str               # Most recent use of this process
-    continuity_days: int = 180        # 6 months default
+    aws_code: str = "AWS D1.1"
+    qualification_type: str = "WQTR"
+    procedure_id: str
+    creation_date: str
+    last_welded_on: str
+    continuity_days: int = 180
     notes: Optional[str] = None
 
 class QualificationUpdate(BaseModel):
@@ -46,7 +40,7 @@ class QualificationUpdate(BaseModel):
 class ActivityLogCreate(BaseModel):
     qualification_id: int
     activity_date: str
-    activity_type: str = "welded"  # welded, requalified, lapsed, note
+    activity_type: str = "welded"
     logged_by: str = ""
     notes: Optional[str] = None
 
@@ -72,698 +66,573 @@ def get_db():
 def ph():
     return "%s" if USE_POSTGRES else "?"
 
-def serial_type():
-    return "SERIAL" if USE_POSTGRES else "INTEGER"
-
-def bool_type():
-    return "BOOLEAN DEFAULT TRUE" if USE_POSTGRES else "INTEGER DEFAULT 1"
-
-def timestamp_default():
-    return "TIMESTAMP DEFAULT CURRENT_TIMESTAMP" if USE_POSTGRES else "TEXT DEFAULT (datetime('now'))"
-
-# ============================================================
-# TABLE CREATION
-# ============================================================
-
 def init_welding_tables():
-    """Create welding roster tables if they don't exist."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    s = serial_type()
-    b = bool_type()
-    ts = timestamp_default()
-    
-    # Welding qualifications table
-    cur.execute(f"""
-        CREATE TABLE IF NOT EXISTS welding_qualifications (
-            id {s} PRIMARY KEY,
-            welder_name TEXT NOT NULL,
-            aws_code TEXT NOT NULL DEFAULT 'AWS D1.1',
-            qualification_type TEXT NOT NULL DEFAULT 'WQTR',
-            procedure_id TEXT NOT NULL,
-            creation_date TEXT NOT NULL,
-            last_welded_on TEXT NOT NULL,
-            continuity_days INTEGER DEFAULT 180,
-            notes TEXT,
-            is_active {b},
-            created_at {ts},
-            updated_at {ts}
-        )
-    """)
-    
-    # Activity log - tracks each time continuity is updated
-    cur.execute(f"""
-        CREATE TABLE IF NOT EXISTS welding_activity_log (
-            id {s} PRIMARY KEY,
-            qualification_id INTEGER NOT NULL,
-            activity_date TEXT NOT NULL,
-            activity_type TEXT NOT NULL DEFAULT 'welded',
-            logged_by TEXT DEFAULT '',
-            notes TEXT,
-            created_at {ts}
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
-    print("Welding roster tables initialized")
-
-def init_procedure_table():
-    """Create welding procedures table for WPS document storage."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    s = serial_type()
-    ts = timestamp_default()
-    
-    cur.execute(f"""
-        CREATE TABLE IF NOT EXISTS welding_procedures (
-            id {s} PRIMARY KEY,
-            procedure_id TEXT NOT NULL UNIQUE,
-            aws_code TEXT NOT NULL DEFAULT 'AWS D1.1',
-            description TEXT,
-            filename TEXT,
-            file_data TEXT,
-            content_type TEXT DEFAULT 'application/pdf',
-            uploaded_by TEXT,
-            uploaded_at {ts}
-        )
-    """)
-    
-    conn.commit()
-    conn.close()
-    print("Welding procedures table initialized")
-
-# Run on import
-init_welding_tables()
-init_procedure_table()
-
-
-# ============================================================
-# HELPER: Compute status for a qualification
-# ============================================================
-
-def compute_status(last_welded_on_str, continuity_days=180):
-    """Returns (status, days_remaining, continuity_expires) for a qualification."""
     try:
-        last_welded = datetime.strptime(str(last_welded_on_str)[:10], "%Y-%m-%d").date()
-    except:
-        return "unknown", 0, None
-    
-    expires = last_welded + timedelta(days=continuity_days)
-    today = date.today()
-    days_remaining = (expires - today).days
-    
-    if days_remaining < 0:
-        status = "lapsed"
-    elif days_remaining <= 30:
-        status = "expiring_soon"
-    else:
-        status = "current"
-    
-    return status, days_remaining, expires.isoformat()
-
-
-def enrich_qualification(row):
-    """Add computed fields to a qualification dict."""
-    d = dict(row)
-    status, days_remaining, expires = compute_status(
-        d.get("last_welded_on", ""),
-        d.get("continuity_days", 180)
-    )
-    d["status"] = status
-    d["days_remaining"] = days_remaining
-    d["continuity_expires"] = expires
-    return d
-
-
-# ============================================================
-# DASHBOARD
-# ============================================================
-
-@router.get("/dashboard")
-async def welding_dashboard():
-    """Full dashboard: summary, lapsed, expiring, current, by_welder, by_code."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    p = ph()
-    active_check = "TRUE" if USE_POSTGRES else "1"
-    
-    cur.execute(f"SELECT * FROM welding_qualifications WHERE is_active = {active_check} ORDER BY welder_name, aws_code")
-    rows = [enrich_qualification(r) for r in cur.fetchall()]
-    conn.close()
-    
-    lapsed = [r for r in rows if r["status"] == "lapsed"]
-    expiring = [r for r in rows if r["status"] == "expiring_soon"]
-    current = [r for r in rows if r["status"] == "current"]
-    
-    # By welder
-    by_welder = {}
-    for r in rows:
-        name = r["welder_name"]
-        if name not in by_welder:
-            by_welder[name] = []
-        by_welder[name].append(r)
-    
-    # By AWS code
-    by_code = {}
-    for r in rows:
-        code = r["aws_code"]
-        if code not in by_code:
-            by_code[code] = []
-        by_code[code].append(r)
-    
-    # Unique welders
-    unique_welders = list(set(r["welder_name"] for r in rows))
-    
-    # Compliance: % of qualifications that are current (not lapsed)
-    total = len(rows)
-    active_count = len(current) + len(expiring)
-    compliance = round((active_count / total * 100) if total > 0 else 0, 1)
-    
-    return {
-        "summary": {
-            "total_qualifications": total,
-            "total_welders": len(unique_welders),
-            "current": len(current),
-            "expiring_soon": len(expiring),
-            "lapsed": len(lapsed),
-            "compliance_rate": compliance
-        },
-        "lapsed": sorted(lapsed, key=lambda x: x["days_remaining"]),
-        "expiring_soon": sorted(expiring, key=lambda x: x["days_remaining"]),
-        "current": sorted(current, key=lambda x: x["days_remaining"]),
-        "by_welder": by_welder,
-        "by_code": by_code,
-        "welders": sorted(unique_welders)
-    }
-
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        if USE_POSTGRES:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS welder_qualifications (
+                    id SERIAL PRIMARY KEY,
+                    welder_name TEXT NOT NULL,
+                    aws_code TEXT NOT NULL,
+                    qualification_type TEXT DEFAULT 'WQTR',
+                    procedure_id TEXT NOT NULL,
+                    creation_date DATE,
+                    last_welded_on DATE,
+                    continuity_days INTEGER DEFAULT 180,
+                    notes TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS welder_activity_log (
+                    id SERIAL PRIMARY KEY,
+                    qualification_id INTEGER REFERENCES welder_qualifications(id) ON DELETE CASCADE,
+                    activity_date DATE NOT NULL,
+                    activity_type TEXT NOT NULL,
+                    logged_by TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS welding_procedures (
+                    id SERIAL PRIMARY KEY,
+                    procedure_id TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    aws_code TEXT,
+                    pdf_data TEXT,
+                    pdf_filename TEXT,
+                    is_active BOOLEAN DEFAULT TRUE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        else:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS welder_qualifications (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    welder_name TEXT NOT NULL,
+                    aws_code TEXT NOT NULL,
+                    qualification_type TEXT DEFAULT 'WQTR',
+                    procedure_id TEXT NOT NULL,
+                    creation_date DATE,
+                    last_welded_on DATE,
+                    continuity_days INTEGER DEFAULT 180,
+                    notes TEXT,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS welder_activity_log (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    qualification_id INTEGER REFERENCES welder_qualifications(id) ON DELETE CASCADE,
+                    activity_date DATE NOT NULL,
+                    activity_type TEXT NOT NULL,
+                    logged_by TEXT,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS welding_procedures (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    procedure_id TEXT UNIQUE NOT NULL,
+                    description TEXT,
+                    aws_code TEXT,
+                    pdf_data TEXT,
+                    pdf_filename TEXT,
+                    is_active BOOLEAN DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+        
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        print(f"Error initializing welding tables: {e}")
+        raise
 
 # ============================================================
-# QUALIFICATIONS CRUD
+# SEED DATA - From Continuity_Logs3-6-26.pdf (56 records)
+# Format: (welder_name, aws_code, procedure_id, creation_date, last_welded_on)
+# ============================================================
+
+SEED_DATA = [
+    # Row 1-10
+    ("Tyler Roberts", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-06-09", "2024-09-12"),
+    ("My Nguyen", "AWS D1.1", "SSE B-U2-GF", "2025-06-09", "2025-02-27"),
+    ("Jamone Bienemy", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-06-09", "2024-09-12"),
+    ("Ricardo Solis", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-06-09", "2024-09-12"),
+    ("Jamone Bienemy", "AWS D1.1", "SSE B-U2-GF", "2025-06-09", "2024-02-27"),
+    ("Ricardo Solis", "AWS D1.1", "SSE-012-GM-MC-WPS", "2025-06-09", "2025-04-25"),
+    ("Wilson Raybon", "AWS D1.1", "SSE B-U2-GF", "2025-06-09", "2020-09-25"),
+    ("Tyler Roberts", "AWS D1.1", "SSE B-U2-GF", "2025-06-09", "2024-01-01"),
+    ("Jamone Bienemy", "AWS D1.1", "SSE-012-GM-MC-WPS", "2025-06-09", "2025-04-25"),
+    ("Shae Beckham", "AWS D1.1", "Mislocated Hole Repair", "2025-06-25", "2025-06-25"),
+    
+    # Row 11-20
+    ("Gage Landry", "AWS D1.1", "Mislocated Hole Repair", "2025-07-16", "2025-07-16"),
+    ("Gilbert Humphries", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2025-08-20", "2025-08-21"),
+    ("Paul Matlock", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2025-08-20", "2025-08-21"),
+    ("Julie Mitchell", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2025-08-21", "2025-08-22"),
+    ("Ryan Lam", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2025-08-26", "2025-08-26"),
+    ("Charles Coleman", "AWS D1.1", "SSE-012-GM-MC-WPS", "2025-11-14", "2025-04-02"),
+    ("Tharen Frederick", "AWS D1.1", "Mislocated Hole Repair", "2025-11-14", "2025-07-24"),
+    ("Amy Tong", "AWS D1.1", "B-L1b-GF Metal Core", "2025-11-14", "2025-04-02"),
+    ("Amy Tong", "AWS D1.1", "SSE Box Tubing", "2025-11-14", "2024-06-19"),
+    ("Alan Mixon", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2024-11-05"),
+    
+    # Row 21-30
+    ("Richard Eubanks", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2023-07-10"),
+    ("Tyrek Lindsey", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2023-07-25"),
+    ("Amy Tong", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2025-11-14", "2024-07-17"),
+    ("Terry Williams", "AWS D1.1", "SSE-012-GM-MC-WPS", "2025-11-14", "2025-04-02"),
+    ("William Pilkin", "AWS D1.5", "SSE-FC-A709(36)-FCM-WPS", "2025-11-14", "2025-06-11"),
+    ("Ricardo Solis", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2024-02-27"),
+    ("Terry Williams", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2016-12-13"),
+    ("Johnny Evans", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2024-12-16"),
+    ("Tyrek Lindsey", "AWS D1.1", "SSE-012-GM-MC-WPS", "2025-11-14", "2025-04-23"),
+    ("Amy Tong", "AWS D1.1", "SSE-012-GM-MC-WPS", "2025-11-14", "2025-04-02"),
+    
+    # Row 31-40
+    ("William Pilkin", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2024-01-17"),
+    ("Rashid Levy", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2025-08-21"),
+    ("Nicholas Adams", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2022-08-24"),
+    ("Raymond Brewer", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2023-05-11"),
+    ("Paul Williams", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2025-06-30"),
+    ("Charles Coleman", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2024-06-11"),
+    ("Amy Tong", "AWS D1.1", "SSE B-U2-GF", "2025-11-14", "2023-07-10"),
+    ("William Pilkin", "AWS D1.4", "Flare Bevel S.S D1.4/D1.6", "2025-12-08", "2025-03-07"),
+    ("Terry Williams", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-12-08", "2024-06-03"),
+    ("Richard Eubanks", "AWS D1.4", "SSE D1.4-500", "2025-12-08", "2024-04-09"),
+    
+    # Row 41-50
+    ("Tyrek Lindsey", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-12-08", "2024-08-27"),
+    ("Charles Coleman", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-12-08", "2024-08-27"),
+    ("Herbert Keeton", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-12-08", "2024-08-27"),
+    ("Richard Eubanks", "AWS D1.4", "Flare Bevel S.S D1.4/D1.6", "2025-12-08", "2025-03-07"),
+    ("Charles Coleman", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-12-08", "2024-07-19"),
+    ("Amy Tong", "AWS D1.4", "SSE-AWS-D1.4-FC-001-WPS", "2025-12-09", "2024-08-27"),
+    ("Brittany Knapper", "AWS D1.1", "Mislocated Hole Repair", "2026-02-02", "2025-09-29"),
+    ("Alberto Alvarez", "AWS D1.1", "SSE B-U2-GF", "2026-02-02", "2026-02-02"),
+    ("Chris Arceneaux", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2026-02-10", "2026-03-03"),
+    ("Roy Stigler", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2026-02-10", "2026-02-10"),
+    
+    # Row 51-56
+    ("Eric Pham", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2026-02-20", "2025-08-22"),
+    ("Vinson Pulliam", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2026-02-20", "2025-08-26"),
+    ("Micheal Abarca", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2026-02-20", "2025-08-21"),
+    ("Thomas Case", "AWS D1.5", "D1.5 Fig 7.8 5-16 FW", "2026-03-03", "2026-02-17"),
+    ("Charles Coleman", "AWS D1.4", "Flare Bevel S.S D1.4/D1.6", "2026-12-08", "2025-03-07"),
+]
+
+# All unique procedures for dropdown (10 procedures)
+PROCEDURES = [
+    {"id": "SSE-AWS-D1.4-FC-001-WPS", "description": "D1.4 Flux Core WPS", "aws_code": "AWS D1.4"},
+    {"id": "SSE D1.4-500", "description": "D1.4 Standard 500", "aws_code": "AWS D1.4"},
+    {"id": "Flare Bevel S.S D1.4/D1.6", "description": "Flare Bevel Stainless Steel D1.4/D1.6", "aws_code": "AWS D1.4"},
+    {"id": "SSE B-U2-GF", "description": "Gas Shielded Flux Core", "aws_code": "AWS D1.1"},
+    {"id": "SSE-012-GM-MC-WPS", "description": "Metal Core WPS", "aws_code": "AWS D1.1"},
+    {"id": "Mislocated Hole Repair", "description": "Mislocated Hole Repair Procedure", "aws_code": "AWS D1.1"},
+    {"id": "B-L1b-GF Metal Core", "description": "Metal Core L1b Gas Shielded", "aws_code": "AWS D1.1"},
+    {"id": "SSE Box Tubing", "description": "Box Tubing WPS", "aws_code": "AWS D1.1"},
+    {"id": "D1.5 Fig 7.8 5-16 FW", "description": "Bridge Fillet Weld 5/16 per Fig 7.8", "aws_code": "AWS D1.5"},
+    {"id": "SSE-FC-A709(36)-FCM-WPS", "description": "A709 Grade 36 Flux Core Metal WPS", "aws_code": "AWS D1.5"},
+]
+
+# ============================================================
+# ROUTES
 # ============================================================
 
 @router.get("/qualifications")
-async def list_qualifications(welder: Optional[str] = None, aws_code: Optional[str] = None):
-    """List all qualifications with computed status."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    p = ph()
-    active_check = "TRUE" if USE_POSTGRES else "1"
-    
-    query = f"SELECT * FROM welding_qualifications WHERE is_active = {active_check}"
-    params = []
-    
-    if welder:
-        query += f" AND welder_name = {p}"
-        params.append(welder)
-    if aws_code:
-        query += f" AND aws_code = {p}"
-        params.append(aws_code)
-    
-    query += " ORDER BY welder_name, aws_code, procedure_id"
-    
-    cur.execute(query, params)
-    rows = [enrich_qualification(r) for r in cur.fetchall()]
-    conn.close()
-    
-    return rows
-
+def get_qualifications(active_only: bool = True):
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        if active_only:
+            cursor.execute("SELECT * FROM welder_qualifications WHERE is_active = TRUE ORDER BY welder_name, aws_code")
+        else:
+            cursor.execute("SELECT * FROM welder_qualifications ORDER BY welder_name, aws_code")
+        
+        rows = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        
+        # Calculate status for each
+        today = date.today()
+        for row in rows:
+            if row.get('last_welded_on'):
+                if isinstance(row['last_welded_on'], str):
+                    last = datetime.strptime(row['last_welded_on'], '%Y-%m-%d').date()
+                else:
+                    last = row['last_welded_on']
+                
+                days_since = (today - last).days
+                continuity = row.get('continuity_days', 180)
+                days_remaining = continuity - days_since
+                
+                # Calculate expiration date
+                expire_date = last + timedelta(days=continuity)
+                row['continuity_expires'] = expire_date.strftime('%Y-%m-%d')
+                row['days_remaining'] = days_remaining
+                
+                if days_since > continuity:
+                    row['status'] = 'lapsed'
+                    row['days_overdue'] = days_since - continuity
+                elif days_since > continuity - 30:
+                    row['status'] = 'expiring_soon'
+                    row['days_until_lapse'] = continuity - days_since
+                else:
+                    row['status'] = 'current'
+                    row['days_until_lapse'] = continuity - days_since
+            else:
+                row['status'] = 'unknown'
+                row['continuity_expires'] = None
+                row['days_remaining'] = None
+        
+        return rows
+    except Exception as e:
+        print(f"Qualifications error: {e}")
+        return []
 
 @router.get("/qualifications/{qual_id}")
-async def get_qualification(qual_id: int):
-    """Get single qualification with activity history."""
+def get_qualification(qual_id: int):
     conn = get_db()
-    cur = conn.cursor()
-    
-    p = ph()
-    
-    cur.execute(f"SELECT * FROM welding_qualifications WHERE id = {p}", (qual_id,))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Qualification not found")
-    
-    qual = enrich_qualification(row)
-    
-    # Get activity log
-    cur.execute(f"SELECT * FROM welding_activity_log WHERE qualification_id = {p} ORDER BY activity_date DESC", (qual_id,))
-    qual["activity_history"] = [dict(r) for r in cur.fetchall()]
-    
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM welder_qualifications WHERE id = {ph()}", (qual_id,))
+    row = cursor.fetchone()
     conn.close()
-    return qual
-
+    if not row:
+        raise HTTPException(404, "Qualification not found")
+    return dict(row)
 
 @router.post("/qualifications")
-async def create_qualification(data: QualificationCreate):
-    """Add a new welder qualification."""
+def create_qualification(data: QualificationCreate):
     conn = get_db()
-    cur = conn.cursor()
+    cursor = conn.cursor()
     
-    p = ph()
+    if USE_POSTGRES:
+        cursor.execute("""
+            INSERT INTO welder_qualifications 
+            (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on, continuity_days, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            RETURNING *
+        """, (data.welder_name, data.aws_code, data.qualification_type, data.procedure_id, 
+              data.creation_date, data.last_welded_on, data.continuity_days, data.notes))
+        row = cursor.fetchone()
+    else:
+        cursor.execute("""
+            INSERT INTO welder_qualifications 
+            (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on, continuity_days, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        """, (data.welder_name, data.aws_code, data.qualification_type, data.procedure_id, 
+              data.creation_date, data.last_welded_on, data.continuity_days, data.notes))
+        cursor.execute("SELECT * FROM welder_qualifications WHERE id = ?", (cursor.lastrowid,))
+        row = cursor.fetchone()
     
-    try:
-        if USE_POSTGRES:
-            cur.execute("""
-                INSERT INTO welding_qualifications 
-                (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on, continuity_days, notes)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id
-            """, (data.welder_name, data.aws_code, data.qualification_type, data.procedure_id,
-                  data.creation_date, data.last_welded_on, data.continuity_days, data.notes))
-            result = cur.fetchone()
-            new_id = result["id"]
-        else:
-            cur.execute("""
-                INSERT INTO welding_qualifications 
-                (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on, continuity_days, notes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """, (data.welder_name, data.aws_code, data.qualification_type, data.procedure_id,
-                  data.creation_date, data.last_welded_on, data.continuity_days, data.notes))
-            new_id = cur.lastrowid
-        
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
-    
-    return {"id": new_id, "message": "Qualification added"}
-
+    conn.commit()
+    conn.close()
+    return dict(row)
 
 @router.put("/qualifications/{qual_id}")
-async def update_qualification(qual_id: int, data: QualificationUpdate):
-    """Update a qualification record."""
+def update_qualification(qual_id: int, data: QualificationUpdate):
     conn = get_db()
-    cur = conn.cursor()
+    cursor = conn.cursor()
     
-    p = ph()
+    updates = []
+    values = []
+    for field, value in data.dict(exclude_unset=True).items():
+        if value is not None:
+            updates.append(f"{field} = {ph()}")
+            values.append(value)
     
-    fields = {k: v for k, v in data.dict().items() if v is not None}
-    if not fields:
-        conn.close()
-        return {"message": "No changes"}
+    if not updates:
+        raise HTTPException(400, "No fields to update")
     
-    for field, value in fields.items():
-        cur.execute(f"UPDATE welding_qualifications SET {field} = {p} WHERE id = {p}", (value, qual_id))
-    
-    # Update timestamp
-    if USE_POSTGRES:
-        cur.execute(f"UPDATE welding_qualifications SET updated_at = CURRENT_TIMESTAMP WHERE id = {p}", (qual_id,))
-    
+    values.append(qual_id)
+    cursor.execute(f"UPDATE welder_qualifications SET {', '.join(updates)}, updated_at = CURRENT_TIMESTAMP WHERE id = {ph()}", values)
     conn.commit()
+    
+    cursor.execute(f"SELECT * FROM welder_qualifications WHERE id = {ph()}", (qual_id,))
+    row = cursor.fetchone()
     conn.close()
-    return {"message": "Qualification updated"}
-
+    return dict(row)
 
 @router.delete("/qualifications/{qual_id}")
-async def deactivate_qualification(qual_id: int):
-    """Soft-delete a qualification."""
+def delete_qualification(qual_id: int):
     conn = get_db()
-    cur = conn.cursor()
-    p = ph()
-    
-    if USE_POSTGRES:
-        cur.execute(f"UPDATE welding_qualifications SET is_active = FALSE WHERE id = {p}", (qual_id,))
-    else:
-        cur.execute(f"UPDATE welding_qualifications SET is_active = 0 WHERE id = {p}", (qual_id,))
-    
+    cursor = conn.cursor()
+    cursor.execute(f"DELETE FROM welder_qualifications WHERE id = {ph()}", (qual_id,))
     conn.commit()
     conn.close()
-    return {"message": "Qualification deactivated"}
-
-
-# ============================================================
-# LOG WELDING ACTIVITY (update continuity)
-# ============================================================
+    return {"success": True}
 
 @router.post("/qualifications/{qual_id}/log-activity")
-async def log_welding_activity(qual_id: int, data: ActivityLogCreate):
-    """Log welding activity — updates the last_welded_on date for continuity."""
+def log_activity(qual_id: int, data: ActivityLogCreate):
     conn = get_db()
-    cur = conn.cursor()
+    cursor = conn.cursor()
     
-    p = ph()
+    # Log the activity
+    if USE_POSTGRES:
+        cursor.execute("""
+            INSERT INTO welder_activity_log (qualification_id, activity_date, activity_type, logged_by, notes)
+            VALUES (%s, %s, %s, %s, %s)
+        """, (qual_id, data.activity_date, data.activity_type, data.logged_by, data.notes))
+    else:
+        cursor.execute("""
+            INSERT INTO welder_activity_log (qualification_id, activity_date, activity_type, logged_by, notes)
+            VALUES (?, ?, ?, ?, ?)
+        """, (qual_id, data.activity_date, data.activity_type, data.logged_by, data.notes))
     
-    # Verify qualification exists
-    cur.execute(f"SELECT * FROM welding_qualifications WHERE id = {p}", (qual_id,))
-    row = cur.fetchone()
-    if not row:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Qualification not found")
+    # If it's a weld activity, update last_welded_on
+    if data.activity_type == "welded":
+        cursor.execute(f"UPDATE welder_qualifications SET last_welded_on = {ph()}, updated_at = CURRENT_TIMESTAMP WHERE id = {ph()}", 
+                      (data.activity_date, qual_id))
     
+    conn.commit()
+    conn.close()
+    return {"success": True}
+
+@router.get("/qualifications/{qual_id}/activity")
+def get_activity_log(qual_id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM welder_activity_log WHERE qualification_id = {ph()} ORDER BY activity_date DESC", (qual_id,))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    return rows
+
+@router.get("/dashboard")
+def get_dashboard():
+    """Summary stats for welding dashboard"""
     try:
-        # Log the activity
-        if USE_POSTGRES:
-            cur.execute("""
-                INSERT INTO welding_activity_log 
-                (qualification_id, activity_date, activity_type, logged_by, notes)
-                VALUES (%s, %s, %s, %s, %s)
-            """, (qual_id, data.activity_date, data.activity_type, data.logged_by, data.notes))
-        else:
-            cur.execute("""
-                INSERT INTO welding_activity_log 
-                (qualification_id, activity_date, activity_type, logged_by, notes)
-                VALUES (?, ?, ?, ?, ?)
-            """, (qual_id, data.activity_date, data.activity_type, data.logged_by, data.notes))
-        
-        # If welded or requalified, update last_welded_on
-        if data.activity_type in ("welded", "requalified"):
-            cur.execute(f"UPDATE welding_qualifications SET last_welded_on = {p} WHERE id = {p}",
-                       (data.activity_date, qual_id))
-            if USE_POSTGRES:
-                cur.execute(f"UPDATE welding_qualifications SET updated_at = CURRENT_TIMESTAMP WHERE id = {p}", (qual_id,))
-        
-        conn.commit()
+        quals = get_qualifications(active_only=True)
     except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=400, detail=str(e))
-    finally:
-        conn.close()
+        print(f"Dashboard error: {e}")
+        return {
+            "summary": {
+                "total_qualifications": 0,
+                "total_welders": 0,
+                "current": 0,
+                "expiring_soon": 0,
+                "lapsed": 0,
+                "compliance_rate": 100
+            },
+            "lapsed": [],
+            "expiring_soon": [],
+            "current": [],
+            "by_welder": {}
+        }
     
-    return {"message": "Activity logged", "qualification_id": qual_id}
-
-
-# ============================================================
-# BULK UPDATE: Log welding for a welder across all their qualifications
-# ============================================================
-
-@router.post("/welders/{welder_name}/log-all")
-async def log_all_for_welder(welder_name: str, activity_date: str = None, logged_by: str = ""):
-    """Update continuity for ALL qualifications of a welder at once."""
-    if not activity_date:
-        activity_date = date.today().isoformat()
+    current_list = [q for q in quals if q.get('status') == 'current']
+    expiring_list = [q for q in quals if q.get('status') == 'expiring_soon']
+    lapsed_list = [q for q in quals if q.get('status') == 'lapsed']
     
-    conn = get_db()
-    cur = conn.cursor()
-    p = ph()
-    active_check = "TRUE" if USE_POSTGRES else "1"
+    # Get unique welders
+    welders = list(set(q['welder_name'] for q in quals))
     
-    cur.execute(f"SELECT id FROM welding_qualifications WHERE welder_name = {p} AND is_active = {active_check}", (welder_name,))
-    qual_ids = [dict(r)["id"] for r in cur.fetchall()]
+    # Group by welder
+    by_welder = {}
+    for q in quals:
+        name = q['welder_name']
+        if name not in by_welder:
+            by_welder[name] = []
+        by_welder[name].append(q)
     
-    for qid in qual_ids:
-        if USE_POSTGRES:
-            cur.execute("""
-                INSERT INTO welding_activity_log (qualification_id, activity_date, activity_type, logged_by, notes)
-                VALUES (%s, %s, 'welded', %s, 'Bulk update')
-            """, (qid, activity_date, logged_by))
-            cur.execute("UPDATE welding_qualifications SET last_welded_on = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s",
-                       (activity_date, qid))
-        else:
-            cur.execute("""
-                INSERT INTO welding_activity_log (qualification_id, activity_date, activity_type, logged_by, notes)
-                VALUES (?, ?, 'welded', ?, 'Bulk update')
-            """, (qid, activity_date, logged_by))
-            cur.execute("UPDATE welding_qualifications SET last_welded_on = ? WHERE id = ?",
-                       (activity_date, qid))
-    
-    conn.commit()
-    conn.close()
-    
-    return {"message": f"Updated {len(qual_ids)} qualifications for {welder_name}", "count": len(qual_ids)}
-
-
-# ============================================================
-# EXPORT
-# ============================================================
-
-@router.get("/export")
-async def export_welding():
-    """Export all welding data as JSON."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    active_check = "TRUE" if USE_POSTGRES else "1"
-    
-    cur.execute(f"SELECT * FROM welding_qualifications WHERE is_active = {active_check} ORDER BY welder_name, aws_code")
-    quals = [enrich_qualification(r) for r in cur.fetchall()]
-    
-    cur.execute("SELECT * FROM welding_activity_log ORDER BY activity_date DESC")
-    activities = [dict(r) for r in cur.fetchall()]
-    
-    conn.close()
+    # Calculate compliance rate
+    total = len(quals)
+    compliant = len(current_list) + len(expiring_list)
+    compliance_rate = round((compliant / total * 100) if total > 0 else 100)
     
     return {
-        "export_date": date.today().isoformat(),
-        "company": "Southern Services & Equipment Inc.",
-        "document": "Welding Qualification Continuity Log",
-        "qualifications": quals,
-        "activity_log": activities
+        "summary": {
+            "total_qualifications": len(quals),
+            "total_welders": len(welders),
+            "current": len(current_list),
+            "expiring_soon": len(expiring_list),
+            "lapsed": len(lapsed_list),
+            "compliance_rate": compliance_rate
+        },
+        "lapsed": lapsed_list,
+        "expiring_soon": expiring_list,
+        "current": current_list,
+        "by_welder": by_welder
     }
-
-
-# ============================================================
-# SEED DATA — SSE Continuity Log
-# ============================================================
-
-@router.post("/seed")
-async def seed_welding_data():
-    """One-time seed of SSE welding continuity log data."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    p = ph()
-    active_check = "TRUE" if USE_POSTGRES else "1"
-    
-    # Check if already seeded
-    cur.execute(f"SELECT COUNT(*) as cnt FROM welding_qualifications WHERE is_active = {active_check}")
-    row = cur.fetchone()
-    count = dict(row).get("cnt", 0) if USE_POSTGRES else row[0]
-    
-    if count > 0:
-        conn.close()
-        return {"message": f"Database already has {count} qualifications. Seed skipped.", "seeded": False}
-    
-    # SSE Continuity Log data from spreadsheet
-    # Format: (welder_name, aws_code, qual_type, procedure_id, creation_date, last_welded_on)
-    seed_data = [
-        # === AWS D1.4 WQTR qualifications ===
-        ("Tyler Roberts", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-09-12", "2025-06-09"),
-        ("Charles Coleman", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-07-19", "2025-06-09"),
-        ("William Pitkin", "AWS D1.4", "WQTR", "Flare Bevel S.S D1.4/D1.6", "2025-03-07", "2025-06-09"),
-        ("My Nguyen", "AWS D1.4", "WQTR", "SSE B-U2-GF", "2025-02-27", "2025-06-09"),
-        ("Herbert Keaton", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-08-27", "2025-06-09"),
-        ("Jamone Bienemy", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-09-12", "2025-06-09"),
-        ("Ricardo Solis", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-08-27", "2025-06-09"),
-        ("Amy Tong", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-08-27", "2025-06-09"),
-        ("Charles Coleman", "AWS D1.4", "WQTR", "Flare Bevel S.S D1.4/D1.6", "2025-03-07", "2025-06-09"),
-        ("Richard Eubanks", "AWS D1.4", "WQTR", "Flare Bevel S.S D1.4/D1.6", "2025-03-07", "2025-06-09"),
-        ("Wilson Raybon", "AWS D1.4", "WQTR", "SSE B-U2-GF", "2024-09-25", "2025-06-09"),
-        ("Terry Williams", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-06-03", "2025-06-09"),
-        ("Tyrek Lindsey", "AWS D1.4", "WQTR", "SSE AWS-D1.4-FC-001 WPS", "2024-08-27", "2025-06-09"),
-        ("Shae Beckham", "AWS D1.4", "WQTR", "SSE-003 FCAW WPS", "2025-06-25", "2025-06-25"),
-        ("Terry Williams", "AWS D1.4", "WQTR", "SSE B-U2-GF", "2016-12-13", "2025-11-14"),
-        ("Ricardo Solis", "AWS D1.4", "WQTR", "SSE B-U2-GF", "2025-02-27", "2025-11-14"),
-        
-        # === AWS D1.1 WQTR qualifications ===
-        ("Jamone Bienemy", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2025-02-27", "2025-06-09"),
-        ("Richard Eubanks", "AWS D1.1", "WQTR", "SSE D1.4-500", "2024-04-09", "2025-06-09"),
-        ("Tyler Roberts", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2024-01-11", "2025-06-09"),
-        ("Ricardo Solis", "AWS D1.1", "WQTR", "SSE-012-GM-MC-WPS", "2025-04-25", "2025-06-09"),
-        ("Jamone Bienemy", "AWS D1.1", "WQTR", "SSE-012-GM-MC-WPS", "2025-04-25", "2025-06-09"),
-        ("Gagel Landry", "AWS D1.1", "WQTR", "SSE-003 FCAW WPS", "2025-07-16", "2025-07-16"),
-        ("Raymond Brewer", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2023-09-11", "2025-11-14"),
-        ("Tharon Frederick", "AWS D1.1", "WQTR", "SSE-003 FCAW WPS", "2025-07-24", "2025-11-14"),
-        ("Charles Coleman", "AWS D1.1", "WQTR", "SSE-012-GM-MC-WPS", "2025-04-02", "2025-11-14"),
-        ("Charles Coleman", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2025-06-01", "2025-11-14"),
-        ("Amy Tong", "AWS D1.1", "WQTR", "B-L1b-GF Metal core", "2025-04-02", "2025-11-14"),
-        ("Amy Tong", "AWS D1.1", "WQTR", "SSE Box Tubing", "2024-06-19", "2025-11-14"),
-        ("Amy Tong", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2024-11-05", "2025-11-14"),
-        ("Alan Mixon", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2024-11-05", "2025-11-14"),
-        ("Nicholas Adams", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2022-08-24", "2025-11-14"),
-        ("Richard Eubanks", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2023-07-10", "2025-11-14"),
-        ("Tyrek Lindsey", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2023-07-25", "2025-11-14"),
-        ("William Pitkin", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2024-01-17", "2025-11-14"),
-        ("Johnny Evans", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2024-12-16", "2025-11-14"),
-        ("Rashied Levy", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2025-08-21", "2025-11-14"),
-        ("Amy Tong", "AWS D1.1", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2024-07-17", "2025-11-14"),
-        ("Tyrek Lindsey", "AWS D1.1", "WQTR", "SSE-012-GM-MC-WPS", "2025-04-23", "2025-11-14"),
-        ("Paul Williams", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2025-06-30", "2025-11-14"),
-        ("Amy Tong", "AWS D1.1", "WQTR", "SSE-012-GM-MC-WPS", "2025-04-02", "2025-11-14"),
-        ("Alberto Alvarez", "AWS D1.1", "WQTR", "SSE B-U2-GF", "2026-02-02", "2026-02-02"),
-        
-        # === AWS D1.5 WQTR qualifications ===
-        ("Michael Abarca", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-21", "2025-08-21"),
-        ("Gilbert Humphries", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-21", "2025-08-21"),
-        ("Paul Madlock", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-21", "2025-08-21"),
-        ("Eric Pham", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-22", "2025-08-22"),
-        ("Julie Mitchell", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-22", "2025-08-22"),
-        ("Vinson Pulliam", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-26", "2025-08-26"),
-        ("Ryan Lam", "AWS D1.5", "WQTR", "D1.5 Fig 7.8 5/16\" FW", "2025-08-26", "2025-08-26"),
-        ("Brittany Knapper", "AWS D1.5", "WQTR", "SSE-003 FCAW WPS", "2025-09-29", "2025-09-29"),
-        ("Terry Williams", "AWS D1.5", "WQTR", "SSE-012-GM-MC-WPS", "2025-04-02", "2025-11-14"),
-        ("William Pitkin", "AWS D1.5", "WQTR", "SSE FC-A70/G5 FCAW WPS", "2025-06-11", "2025-11-14"),
-    ]
-    
-    inserted = 0
-    for (wname, acode, qtype, proc, cdate, lwelded) in seed_data:
-        try:
-            if USE_POSTGRES:
-                cur.execute("""
-                    INSERT INTO welding_qualifications 
-                    (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on, continuity_days)
-                    VALUES (%s, %s, %s, %s, %s, %s, 180)
-                """, (wname, acode, qtype, proc, cdate, lwelded))
-            else:
-                cur.execute("""
-                    INSERT INTO welding_qualifications 
-                    (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on, continuity_days)
-                    VALUES (?, ?, ?, ?, ?, ?, 180)
-                """, (wname, acode, qtype, proc, cdate, lwelded))
-            inserted += 1
-        except Exception as e:
-            print(f"Seed error for {wname}/{proc}: {e}")
-    
-    conn.commit()
-    conn.close()
-    
-    return {
-        "message": f"Seeded {inserted} welding qualifications from SSE Continuity Log",
-        "seeded": True,
-        "count": inserted
-    }
-
-
-# ============================================================
-# WELDING PROCEDURES (WPS Document Management)
-# ============================================================
-
-SSE_PROCEDURES = [
-    {"procedure_id": "SSE-003 FCAW WPS", "aws_code": "AWS D1.1", "description": "FCAW Welding Procedure Specification"},
-    {"procedure_id": "SSE-012-GM-MC-WPS", "aws_code": "AWS D1.1", "description": "GMAW/Metal Core WPS"},
-    {"procedure_id": "SSE B-U2-GF", "aws_code": "AWS D1.1", "description": "B-U2-GF Groove Weld WPS"},
-    {"procedure_id": "B-L1b-GF Metal core", "aws_code": "AWS D1.1", "description": "B-L1b-GF Metal Core WPS"},
-    {"procedure_id": "SSE Box Tubing", "aws_code": "AWS D1.1", "description": "Box Tubing Weld Procedure"},
-    {"procedure_id": "SSE AWS-D1.4-FC-001 WPS", "aws_code": "AWS D1.4", "description": "D1.4 FCAW Reinforcing Steel WPS"},
-    {"procedure_id": "SSE D1.4-500", "aws_code": "AWS D1.4", "description": "D1.4 500-series WPS"},
-    {"procedure_id": "Flare Bevel S.S D1.4/D1.6", "aws_code": "AWS D1.4", "description": "Flare Bevel Stainless Steel WPS"},
-    {"procedure_id": "SSE FC-A70/G5 FCAW WPS", "aws_code": "AWS D1.5", "description": "FC-A70/G5 FCAW Bridge WPS"},
-    {"procedure_id": "D1.5 Fig 7.8 5/16", "aws_code": "AWS D1.5", "description": "D1.5 Figure 7.8 Fillet Weld WPS"},
-]
-
 
 @router.get("/procedures")
-async def get_procedures():
-    """Get all procedures with upload status."""
-    conn = get_db()
-    cur = conn.cursor()
-    
-    cur.execute("SELECT id, procedure_id, aws_code, description, filename, uploaded_by, uploaded_at FROM welding_procedures")
-    uploaded = {row['procedure_id']: dict(row) for row in cur.fetchall()}
-    conn.close()
-    
-    # Merge master list with uploaded data
-    result = []
-    for proc in SSE_PROCEDURES:
-        entry = {**proc, "has_file": False, "filename": None, "uploaded_by": None, "uploaded_at": None, "db_id": None}
-        if proc["procedure_id"] in uploaded:
-            up = uploaded[proc["procedure_id"]]
-            entry["has_file"] = True
-            entry["filename"] = up["filename"]
-            entry["uploaded_by"] = up["uploaded_by"]
-            entry["uploaded_at"] = up["uploaded_at"]
-            entry["db_id"] = up["id"]
-        result.append(entry)
-    
-    return result
-
-
-@router.post("/procedures/upload")
-async def upload_procedure(
-    procedure_id: str = Form(...),
-    uploaded_by: str = Form(""),
-    file: UploadFile = File(...)
-):
-    """Upload a WPS PDF for a procedure."""
-    # Validate procedure exists in master list
-    valid_ids = [p["procedure_id"] for p in SSE_PROCEDURES]
-    if procedure_id not in valid_ids:
-        raise HTTPException(status_code=400, detail=f"Unknown procedure: {procedure_id}")
-    
-    # Read file and encode as base64
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:  # 10MB limit
-        raise HTTPException(status_code=400, detail="File too large (max 10MB)")
-    
-    b64_data = base64.b64encode(content).decode('utf-8')
-    aws_code = next(p["aws_code"] for p in SSE_PROCEDURES if p["procedure_id"] == procedure_id)
-    description = next(p["description"] for p in SSE_PROCEDURES if p["procedure_id"] == procedure_id)
-    
-    conn = get_db()
-    cur = conn.cursor()
-    
+def get_procedures():
+    """Get all welding procedures"""
     try:
-        if USE_POSTGRES:
-            # Upsert - update if exists, insert if not
-            cur.execute("""
-                INSERT INTO welding_procedures (procedure_id, aws_code, description, filename, file_data, content_type, uploaded_by)
-                VALUES (%s, %s, %s, %s, %s, %s, %s)
-                ON CONFLICT (procedure_id) DO UPDATE SET 
-                    filename = EXCLUDED.filename, 
-                    file_data = EXCLUDED.file_data,
-                    content_type = EXCLUDED.content_type,
-                    uploaded_by = EXCLUDED.uploaded_by,
-                    uploaded_at = CURRENT_TIMESTAMP
-            """, (procedure_id, aws_code, description, file.filename, b64_data, file.content_type or 'application/pdf', uploaded_by))
-        else:
-            cur.execute(f"DELETE FROM welding_procedures WHERE procedure_id = ?", (procedure_id,))
-            cur.execute("""
-                INSERT INTO welding_procedures (procedure_id, aws_code, description, filename, file_data, content_type, uploaded_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (procedure_id, aws_code, description, file.filename, b64_data, file.content_type or 'application/pdf', uploaded_by))
-        
-        conn.commit()
-    except Exception as e:
-        conn.rollback()
-        raise HTTPException(status_code=500, detail=str(e))
-    finally:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, procedure_id, description, aws_code, pdf_filename, is_active FROM welding_procedures WHERE is_active = TRUE ORDER BY procedure_id")
+        rows = [dict(r) for r in cursor.fetchall()]
         conn.close()
-    
-    return {"message": f"Uploaded {file.filename} for {procedure_id}", "success": True}
+        
+        # Add has_file flag
+        for row in rows:
+            row['has_file'] = bool(row.get('pdf_filename'))
+            row['filename'] = row.get('pdf_filename')
+        
+        # If no procedures in DB, return the seed list with has_file = False
+        if not rows:
+            return [{"procedure_id": p['id'], "description": p['description'], "aws_code": p['aws_code'], "has_file": False} for p in PROCEDURES]
+        return rows
+    except Exception as e:
+        # Table doesn't exist yet, return seed list
+        print(f"Procedures table error: {e}")
+        return [{"procedure_id": p['id'], "description": p['description'], "aws_code": p['aws_code'], "has_file": False} for p in PROCEDURES]
 
-
-@router.get("/procedures/{procedure_id}/download")
-async def download_procedure(procedure_id: str):
-    """Download a WPS PDF."""
+@router.get("/procedures/{proc_id}/pdf")
+def get_procedure_pdf(proc_id: int):
+    """Download procedure PDF"""
     conn = get_db()
-    cur = conn.cursor()
-    
-    if USE_POSTGRES:
-        cur.execute("SELECT filename, file_data, content_type FROM welding_procedures WHERE procedure_id = %s", (procedure_id,))
-    else:
-        cur.execute("SELECT filename, file_data, content_type FROM welding_procedures WHERE procedure_id = ?", (procedure_id,))
-    
-    row = cur.fetchone()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT pdf_data, pdf_filename FROM welding_procedures WHERE id = {ph()}", (proc_id,))
+    row = cursor.fetchone()
     conn.close()
     
-    if not row:
-        raise HTTPException(status_code=404, detail="Procedure document not found")
+    if not row or not row['pdf_data']:
+        raise HTTPException(404, "PDF not found")
     
-    row = dict(row)
-    file_bytes = base64.b64decode(row['file_data'])
-    
-    return Response(
-        content=file_bytes,
-        media_type=row['content_type'] or 'application/pdf',
-        headers={"Content-Disposition": f"inline; filename=\"{row['filename']}\""}
-    )
+    return {
+        "filename": row['pdf_filename'],
+        "data": row['pdf_data']
+    }
 
-
-@router.delete("/procedures/{procedure_id}/file")
-async def delete_procedure_file(procedure_id: str):
-    """Remove uploaded file for a procedure."""
+@router.post("/procedures/{procedure_id}/upload")
+async def upload_procedure_pdf(procedure_id: str, file: UploadFile = File(...)):
+    """Upload PDF for a procedure"""
     conn = get_db()
-    cur = conn.cursor()
+    cursor = conn.cursor()
     
-    if USE_POSTGRES:
-        cur.execute("DELETE FROM welding_procedures WHERE procedure_id = %s", (procedure_id,))
+    content = await file.read()
+    b64 = base64.b64encode(content).decode('utf-8')
+    
+    # Check if procedure exists
+    cursor.execute(f"SELECT id FROM welding_procedures WHERE procedure_id = {ph()}", (procedure_id,))
+    existing = cursor.fetchone()
+    
+    if existing:
+        cursor.execute(f"UPDATE welding_procedures SET pdf_data = {ph()}, pdf_filename = {ph()}, updated_at = CURRENT_TIMESTAMP WHERE procedure_id = {ph()}", 
+                      (b64, file.filename, procedure_id))
     else:
-        cur.execute("DELETE FROM welding_procedures WHERE procedure_id = ?", (procedure_id,))
+        # Find procedure info from PROCEDURES list
+        proc_info = next((p for p in PROCEDURES if p['id'] == procedure_id), None)
+        desc = proc_info['description'] if proc_info else procedure_id
+        aws = proc_info['aws_code'] if proc_info else "AWS D1.1"
+        
+        if USE_POSTGRES:
+            cursor.execute("""
+                INSERT INTO welding_procedures (procedure_id, description, aws_code, pdf_data, pdf_filename)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (procedure_id, desc, aws, b64, file.filename))
+        else:
+            cursor.execute("""
+                INSERT INTO welding_procedures (procedure_id, description, aws_code, pdf_data, pdf_filename)
+                VALUES (?, ?, ?, ?, ?)
+            """, (procedure_id, desc, aws, b64, file.filename))
     
     conn.commit()
     conn.close()
-    return {"message": f"Removed file for {procedure_id}"}
+    return {"success": True, "filename": file.filename}
+
+@router.post("/seed")
+def seed_data():
+    """Load all qualification data from continuity log - March 2026 update"""
+    try:
+        # Ensure tables exist first
+        init_welding_tables()
+        
+        conn = get_db()
+        cursor = conn.cursor()
+        
+        # Clear existing qualifications
+        cursor.execute("DELETE FROM welder_qualifications")
+        
+        # Insert all 56 records from continuity log
+        for welder, aws, proc, created, last_weld in SEED_DATA:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    INSERT INTO welder_qualifications 
+                    (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on)
+                    VALUES (%s, %s, 'WQTR', %s, %s, %s)
+                """, (welder, aws, proc, created, last_weld))
+            else:
+                cursor.execute("""
+                    INSERT INTO welder_qualifications 
+                    (welder_name, aws_code, qualification_type, procedure_id, creation_date, last_welded_on)
+                    VALUES (?, ?, 'WQTR', ?, ?, ?)
+                """, (welder, aws, proc, created, last_weld))
+        
+        # Also seed procedures table
+        for proc in PROCEDURES:
+            if USE_POSTGRES:
+                cursor.execute("""
+                    INSERT INTO welding_procedures (procedure_id, description, aws_code)
+                    VALUES (%s, %s, %s)
+                    ON CONFLICT (procedure_id) DO NOTHING
+                """, (proc['id'], proc['description'], proc['aws_code']))
+            else:
+                cursor.execute("""
+                    INSERT OR IGNORE INTO welding_procedures (procedure_id, description, aws_code)
+                    VALUES (?, ?, ?)
+                """, (proc['id'], proc['description'], proc['aws_code']))
+        
+        conn.commit()
+        conn.close()
+        return {"success": True, "count": len(SEED_DATA), "message": f"Loaded {len(SEED_DATA)} qualification records from March 2026 continuity log"}
+    except Exception as e:
+        raise HTTPException(500, f"Seed failed: {str(e)}")
+
+@router.get("/welders")
+def get_unique_welders():
+    """Get list of unique welder names"""
+    try:
+        conn = get_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT DISTINCT welder_name FROM welder_qualifications WHERE is_active = TRUE ORDER BY welder_name")
+        rows = [r['welder_name'] if isinstance(r, dict) else r[0] for r in cursor.fetchall()]
+        conn.close()
+        return rows
+    except Exception as e:
+        print(f"Welders error: {e}")
+        return []
+
+@router.get("/welders/{welder_name}/qualifications")
+def get_welder_qualifications(welder_name: str):
+    """Get all qualifications for a specific welder"""
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute(f"SELECT * FROM welder_qualifications WHERE welder_name = {ph()} AND is_active = TRUE ORDER BY aws_code, procedure_id", (welder_name,))
+    rows = [dict(r) for r in cursor.fetchall()]
+    conn.close()
+    
+    # Calculate status
+    today = date.today()
+    for row in rows:
+        if row.get('last_welded_on'):
+            if isinstance(row['last_welded_on'], str):
+                last = datetime.strptime(row['last_welded_on'], '%Y-%m-%d').date()
+            else:
+                last = row['last_welded_on']
+            
+            days_since = (today - last).days
+            continuity = row.get('continuity_days', 180)
+            
+            if days_since > continuity:
+                row['status'] = 'lapsed'
+            elif days_since > continuity - 30:
+                row['status'] = 'expiring_soon'
+            else:
+                row['status'] = 'current'
+    
+    return rows

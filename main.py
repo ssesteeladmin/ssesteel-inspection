@@ -113,6 +113,19 @@ def init_database():
                 completed_by VARCHAR(100)
             )
         """)
+
+        # Work ticket photos table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS work_ticket_photos (
+                id SERIAL PRIMARY KEY,
+                ticket_id INTEGER REFERENCES work_tickets(id) ON DELETE CASCADE,
+                filename VARCHAR(255) NOT NULL,
+                mime_type VARCHAR(100) NOT NULL,
+                photo_data TEXT NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
     else:
         # SQLite version
         cursor.execute("""
@@ -170,7 +183,19 @@ def init_database():
                 completed_by VARCHAR(100)
             )
         """)
-    
+
+        # Work ticket photos table
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS work_ticket_photos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                ticket_id INTEGER REFERENCES work_tickets(id) ON DELETE CASCADE,
+                filename VARCHAR(255) NOT NULL,
+                mime_type VARCHAR(100) NOT NULL,
+                photo_data TEXT NOT NULL,
+                uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
     conn.commit()
     conn.close()
 
@@ -199,15 +224,13 @@ app.add_middleware(
 STATIC_DIR = Path(__file__).parent / "static"
 
 # =============================================================================
-# CALIBRATION MODULE - Import and include the calibration router
+# CALIBRATION MODULE
 # =============================================================================
 from app.api.calibration import router as calibration_router
 app.include_router(calibration_router)
 
-# =============================================================================
-# WELDING ROSTER MODULE - Import and include the welding router
-# =============================================================================
-from app.api.welding_roster import router as welding_router
+# WELDING MODULE
+from app.api.welding_roster import router as welding_router, init_welding_tables
 app.include_router(welding_router)
 
 
@@ -237,7 +260,7 @@ class EquipmentUpdate(BaseModel):
 class InspectionItemCreate(BaseModel):
     category: str
     item_name: str
-    status: str  # ok, needs_attention, na
+    status: str  # ok, needs_attention, needs_service, out_of_service, na
     comments: Optional[str] = None
 
 class InspectionCreate(BaseModel):
@@ -264,26 +287,33 @@ class WorkTicketUpdate(BaseModel):
     priority: Optional[str] = None
     completed_by: Optional[str] = None
 
+class WorkTicketPhotoCreate(BaseModel):
+    filename: str
+    photo_data: str   # base64 encoded
+    mime_type: str
+
 
 # =============================================================================
 # Equipment Endpoints
 # =============================================================================
 
 @app.get("/api/equipment")
-async def get_equipment(category: Optional[str] = None):
+async def get_equipment(category: Optional[str] = None, active_only: bool = True):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    if active_only:
+        active_filter = "is_active = TRUE" if USE_POSTGRES else "is_active = 1"
+    else:
+        active_filter = "1=1"
+
     if category and category != 'all':
         if USE_POSTGRES:
-            cursor.execute("SELECT * FROM equipment WHERE category = %s AND is_active = TRUE ORDER BY equipment_id", (category,))
+            cursor.execute(f"SELECT * FROM equipment WHERE category = %s AND {active_filter} ORDER BY equipment_id", (category,))
         else:
-            cursor.execute("SELECT * FROM equipment WHERE category = ? AND is_active = 1 ORDER BY equipment_id", (category,))
+            cursor.execute(f"SELECT * FROM equipment WHERE category = ? AND {active_filter} ORDER BY equipment_id", (category,))
     else:
-        if USE_POSTGRES:
-            cursor.execute("SELECT * FROM equipment WHERE is_active = TRUE ORDER BY equipment_id")
-        else:
-            cursor.execute("SELECT * FROM equipment WHERE is_active = 1 ORDER BY equipment_id")
+        cursor.execute(f"SELECT * FROM equipment WHERE {active_filter} ORDER BY equipment_id")
     
     equipment = [dict(row) for row in cursor.fetchall()]
     conn.close()
@@ -358,7 +388,6 @@ async def seed_equipment():
     conn = get_db_connection()
     cursor = conn.cursor()
     
-    # Check if already seeded
     if USE_POSTGRES:
         cursor.execute("SELECT COUNT(*) as cnt FROM equipment WHERE is_active = TRUE")
     else:
@@ -371,21 +400,16 @@ async def seed_equipment():
         conn.close()
         return {"message": f"Database already has {count} equipment records. Seed skipped.", "seeded": False}
     
-    # SSE Equipment Inventory - 12 pieces
-    # (equipment_id, equipment_type, category, make, model, serial_number, capacity)
     seed_data = [
-        # Field Equipment - all share telehandler checklists
         ("BIG-RED", "telehandler", "field", "Taylor", "33K Forklift", None, "33,000 lbs"),
         ("BLUE-GENIE", "telehandler", "field", "Genie", "Telehandler", None, None),
         ("GREEN-JLG", "telehandler", "field", "JLG", "Telehandler", None, None),
         ("ORANGE-GENIE", "telehandler", "field", "Genie", "Telehandler", None, None),
         ("CAT-12K", "telehandler", "field", "Caterpillar", "12K Telehandler", None, "12,000 lbs"),
-        # Shop Equipment - CNC Machines
         ("PIRANHA-01", "piranha-laser", "shop", "Piranha", "6kW Fiber Laser (IPG source, dual pallet shuttle, chiller, assist gas, gantry, dust collector)", None, "6kW"),
         ("PYTHON-BL-01", "python-beam", "shop", "Python X", "Beam Line (300A Hypertherm, 100ft infeed w/ 4 cross transfers, 40ft outfeed, hydraulic clamping)", None, None),
         ("PYTHON-PT-01", "python-plasma", "shop", "Python X", "Plasma Table 10x25 (300A Hypertherm, articulating bevel head, THC, fume extraction)", None, None),
         ("EMI-TC-01", "emi-cutting", "shop", "EMI", "TPC2464 Tube Cutter", None, None),
-        # Shop Equipment - Fabrication
         ("MILLER-01", "welder", "shop", "Miller", "Millermatic 350P MIG Welder", None, None),
         ("PRESS-01", "press-brake", "shop", "Standard", "350T Hydraulic Press Brake (CNC back gauge, hydraulic clamping, light curtains)", None, "350 Ton"),
         ("ROUNDO-01", "plate-roller", "shop", "Roundo", "Plate Roller (hydraulic top roll, 3-roll config, drop end mechanism)", None, None),
@@ -448,7 +472,6 @@ async def get_inspections(equipment_id: Optional[int] = None, inspection_type: O
     cursor.execute(query, params)
     inspections = [dict(row) for row in cursor.fetchall()]
     
-    # Get items for each inspection
     for insp in inspections:
         if USE_POSTGRES:
             cursor.execute("SELECT * FROM inspection_items WHERE inspection_id = %s", (insp['id'],))
@@ -464,6 +487,9 @@ async def create_inspection(inspection: InspectionCreate):
     conn = get_db_connection()
     cursor = conn.cursor()
     
+    # Statuses that should trigger a work ticket
+    TICKET_STATUSES = {'needs_attention', 'needs_service', 'out_of_service'}
+
     try:
         if USE_POSTGRES:
             cursor.execute("""
@@ -498,28 +524,39 @@ async def create_inspection(inspection: InspectionCreate):
                     VALUES (?, ?, ?, ?, ?)
                 """, (inspection_id, item.category, item.item_name, item.status, item.comments))
         
-        # Auto-create work tickets for items needing attention
+        # Auto-create work tickets for any flagged items
         work_ticket_ids = []
         for item in inspection.items:
-            if item.status == 'needs_attention':
+            if item.status in TICKET_STATUSES:
+                # Determine priority: out_of_service is always high
+                is_high = (
+                    item.status == 'out_of_service' or
+                    inspection.overall_status == 'out_of_service'
+                )
+                priority = 'high' if is_high else 'normal'
+
+                # Build a descriptive title
+                status_label = {
+                    'needs_attention': 'Needs Attention',
+                    'needs_service': 'Needs Service',
+                    'out_of_service': 'OUT OF SERVICE'
+                }.get(item.status, item.status)
+
+                title = f"{item.item_name} — {status_label}"
+                description = item.comments or f"Found during {inspection.inspection_type} inspection"
+
                 if USE_POSTGRES:
                     cursor.execute("""
                         INSERT INTO work_tickets (equipment_id, inspection_id, title, description, priority)
                         VALUES (%s, %s, %s, %s, %s) RETURNING id
-                    """, (inspection.equipment_id, inspection_id,
-                          f"{item.item_name} - Needs Attention",
-                          item.comments or f"Found during {inspection.inspection_type} inspection",
-                          'high' if inspection.overall_status == 'out_of_service' else 'normal'))
+                    """, (inspection.equipment_id, inspection_id, title, description, priority))
                     result = cursor.fetchone()
                     work_ticket_ids.append(result['id'])
                 else:
                     cursor.execute("""
                         INSERT INTO work_tickets (equipment_id, inspection_id, title, description, priority)
                         VALUES (?, ?, ?, ?, ?)
-                    """, (inspection.equipment_id, inspection_id,
-                          f"{item.item_name} - Needs Attention",
-                          item.comments or f"Found during {inspection.inspection_type} inspection",
-                          'high' if inspection.overall_status == 'out_of_service' else 'normal'))
+                    """, (inspection.equipment_id, inspection_id, title, description, priority))
                     work_ticket_ids.append(cursor.lastrowid)
         
         conn.commit()
@@ -691,6 +728,92 @@ async def delete_work_ticket(ticket_id: int):
 
 
 # =============================================================================
+# Work Ticket Photo Endpoints
+# =============================================================================
+
+@app.get("/api/work-tickets/{ticket_id}/photos")
+async def get_ticket_photos(ticket_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if USE_POSTGRES:
+        cursor.execute(
+            "SELECT id, ticket_id, filename, mime_type, photo_data, uploaded_at FROM work_ticket_photos WHERE ticket_id = %s ORDER BY uploaded_at ASC",
+            (ticket_id,)
+        )
+    else:
+        cursor.execute(
+            "SELECT id, ticket_id, filename, mime_type, photo_data, uploaded_at FROM work_ticket_photos WHERE ticket_id = ? ORDER BY uploaded_at ASC",
+            (ticket_id,)
+        )
+
+    photos = [dict(row) for row in cursor.fetchall()]
+    conn.close()
+    return photos
+
+
+@app.post("/api/work-tickets/{ticket_id}/photos")
+async def add_ticket_photo(ticket_id: int, photo: WorkTicketPhotoCreate):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Verify the ticket exists
+    if USE_POSTGRES:
+        cursor.execute("SELECT id FROM work_tickets WHERE id = %s", (ticket_id,))
+    else:
+        cursor.execute("SELECT id FROM work_tickets WHERE id = ?", (ticket_id,))
+
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Work ticket not found")
+
+    try:
+        if USE_POSTGRES:
+            cursor.execute("""
+                INSERT INTO work_ticket_photos (ticket_id, filename, mime_type, photo_data)
+                VALUES (%s, %s, %s, %s) RETURNING id
+            """, (ticket_id, photo.filename, photo.mime_type, photo.photo_data))
+            result = cursor.fetchone()
+            photo_id = result['id']
+        else:
+            cursor.execute("""
+                INSERT INTO work_ticket_photos (ticket_id, filename, mime_type, photo_data)
+                VALUES (?, ?, ?, ?)
+            """, (ticket_id, photo.filename, photo.mime_type, photo.photo_data))
+            photo_id = cursor.lastrowid
+
+        conn.commit()
+    except Exception as e:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(e))
+    finally:
+        conn.close()
+
+    return {"id": photo_id, "message": "Photo uploaded successfully"}
+
+
+@app.delete("/api/work-tickets/{ticket_id}/photos/{photo_id}")
+async def delete_ticket_photo(ticket_id: int, photo_id: int):
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    if USE_POSTGRES:
+        cursor.execute(
+            "DELETE FROM work_ticket_photos WHERE id = %s AND ticket_id = %s",
+            (photo_id, ticket_id)
+        )
+    else:
+        cursor.execute(
+            "DELETE FROM work_ticket_photos WHERE id = ? AND ticket_id = ?",
+            (photo_id, ticket_id)
+        )
+
+    conn.commit()
+    conn.close()
+    return {"message": "Photo deleted"}
+
+
+# =============================================================================
 # Dashboard / Stats
 # =============================================================================
 
@@ -726,7 +849,7 @@ async def get_dashboard():
     """)
     recent_inspections = [dict(row) for row in cursor.fetchall()]
     
-    # Equipment needing inspection (no inspection in last 24 hours for daily)
+    # Equipment needing inspection
     cursor.execute("""
         SELECT e.*, 
             (SELECT MAX(inspection_date) FROM inspections WHERE equipment_id = e.id) as last_inspection
