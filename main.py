@@ -851,21 +851,50 @@ async def delete_ticket_photo(ticket_id: int, photo_id: int):
 async def get_dashboard():
     conn = get_db_connection()
     cursor = conn.cursor()
+
     cursor.execute("SELECT category, COUNT(*) as count FROM equipment WHERE is_active = TRUE GROUP BY category" if USE_POSTGRES
                    else "SELECT category, COUNT(*) as count FROM equipment WHERE is_active = 1 GROUP BY category")
     equipment_by_category = {row['category']: row['count'] for row in cursor.fetchall()}
+
     cursor.execute("SELECT COUNT(*) as count FROM work_tickets WHERE status = 'open'")
     result = cursor.fetchone()
     open_tickets = result['count'] if USE_POSTGRES else result[0]
+
     cursor.execute("SELECT COUNT(*) as count FROM work_tickets WHERE status = 'open' AND priority = 'high'")
     result = cursor.fetchone()
     high_priority = result['count'] if USE_POSTGRES else result[0]
+
+    cursor.execute("SELECT COUNT(*) as count FROM work_tickets WHERE status = 'in_progress'")
+    result = cursor.fetchone()
+    in_progress_tickets = result['count'] if USE_POSTGRES else result[0]
+
+    # In progress ticket details
+    cursor.execute("""
+        SELECT wt.*, e.equipment_id as equipment_code, e.equipment_type
+        FROM work_tickets wt JOIN equipment e ON wt.equipment_id = e.id
+        WHERE wt.status = 'in_progress' OR wt.status = 'pending_parts'
+        ORDER BY CASE wt.priority WHEN 'high' THEN 1 ELSE 2 END, wt.created_at DESC
+        LIMIT 5
+    """)
+    in_progress_list = [dict(row) for row in cursor.fetchall()]
+
+    # Recently completed tickets
+    cursor.execute("""
+        SELECT wt.*, e.equipment_id as equipment_code, e.equipment_type
+        FROM work_tickets wt JOIN equipment e ON wt.equipment_id = e.id
+        WHERE wt.status = 'completed'
+        ORDER BY wt.completed_at DESC
+        LIMIT 5
+    """)
+    recently_completed = [dict(row) for row in cursor.fetchall()]
+
     cursor.execute("""
         SELECT i.*, e.equipment_id as equipment_code, e.equipment_type
         FROM inspections i JOIN equipment e ON i.equipment_id = e.id
         ORDER BY i.created_at DESC LIMIT 5
     """)
     recent_inspections = [dict(row) for row in cursor.fetchall()]
+
     cursor.execute("""
         SELECT e.*, (SELECT MAX(inspection_date) FROM inspections WHERE equipment_id = e.id) as last_inspection
         FROM equipment e WHERE e.is_active = TRUE ORDER BY last_inspection ASC NULLS FIRST LIMIT 10
@@ -874,9 +903,18 @@ async def get_dashboard():
         FROM equipment e WHERE e.is_active = 1 ORDER BY last_inspection ASC LIMIT 10
     """)
     equipment_status = [dict(row) for row in cursor.fetchall()]
+
     conn.close()
-    return {"equipment_by_category": equipment_by_category, "open_work_tickets": open_tickets,
-            "high_priority_tickets": high_priority, "recent_inspections": recent_inspections, "equipment_status": equipment_status}
+    return {
+        "equipment_by_category": equipment_by_category,
+        "open_work_tickets": open_tickets,
+        "high_priority_tickets": high_priority,
+        "in_progress_tickets": in_progress_tickets,
+        "in_progress_list": in_progress_list,
+        "recently_completed": recently_completed,
+        "recent_inspections": recent_inspections,
+        "equipment_status": equipment_status
+    }
 
 
 # =============================================================================
